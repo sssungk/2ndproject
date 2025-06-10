@@ -15,9 +15,13 @@ def get_stock_data(ticker, period="1y"):
     """
     try:
         data = yf.download(ticker, period=period)
-        if 'Adj Close' in data.columns:
+        if data.empty:
+            st.warning(f"'{ticker}' 종목에 대한 데이터를 찾을 수 없습니다. (데이터 없음)")
+            return pd.Series(dtype='float64')
+
+        if 'Adj Close' in data.columns and not data['Adj Close'].empty:
             return data['Adj Close']
-        elif 'Close' in data.columns:
+        elif 'Close' in data.columns and not data['Close'].empty:
             st.warning(f"'{ticker}' 종목에 대한 'Adj Close' 데이터를 찾을 수 없어 'Close' 데이터를 사용합니다.")
             return data['Close']
         else:
@@ -68,7 +72,7 @@ else:
         if asset in base_allocations:
             base_percent = base_allocations[asset]
             # 안정 자산 (현금, 채권, 적금)은 리스크 성향이 낮을수록 비중 증가
-            if asset in ["CMA/파킹통장 (현금)", "채권", "적금"]:
+            if asset in ["CMA/파킹통장 (현금)", "채권", " 적금"]: # <-- '적금' 앞에 공백 제거
                 portfolio[asset] = base_percent + (50 - risk_tolerance) * 0.4
             # 공격 자산 (주식, ETF, 원자재)은 리스크 성향이 높을수록 비중 증가
             elif asset in ["ETF", "주식", "원자재"]:
@@ -165,7 +169,8 @@ else:
                             col1.write(f"- **{name}**")
                             # 실시간 데이터 연동 (yfinance)
                             stock_data = get_stock_data(ticker, period="1d") # 당일 데이터만 가져와서 현재가 확인
-                            if not stock_data.empty:
+
+                            if not stock_data.empty: # 데이터가 있을 경우에만 처리
                                 current_price = stock_data.iloc[-1]
                                 # 전일 종가가 있을 경우에만 일일 변화율 계산
                                 if len(stock_data) > 1:
@@ -175,7 +180,7 @@ else:
                                 else: # 당일 데이터만 있는 경우 (장이 시작하자마자 등)
                                     col2.metric("현재가", f"{current_price:,.2f}")
                                 col3.write(f"(`{ticker}`)")
-                            else:
+                            else: # 데이터가 없는 경우
                                 col2.write("데이터 없음")
                                 col3.write(f"(`{ticker}`)")
                         else:
@@ -198,9 +203,11 @@ else:
 
         # 백테스팅 기간 설정
         # 현재 날짜 (2025-06-10) 기준
-        current_date = pd.to_datetime('2025-06-10').date()
-        default_start_date = (current_date - pd.DateOffset(years=1)).date() # 오늘 날짜 기준 1년 전
-        default_end_date = current_date # 오늘 날짜
+        # 현재 시간으로 정확한 날짜를 가져오기 위해 datetime 모듈 사용
+        import datetime
+        current_date = datetime.date(2025, 6, 10) # 현재 날짜를 2025년 6월 10일로 가정
+        default_start_date = (current_date - pd.DateOffset(years=1)).date()
+        default_end_date = current_date
 
         start_date = st.date_input("시작 날짜", default_start_date)
         end_date = st.date_input("종료 날짜", default_end_date)
@@ -225,9 +232,14 @@ else:
             for asset_type in selected_assets:
                 if asset_type in backtest_tickers and backtest_tickers[asset_type]:
                     has_selectable_backtest_assets = True
-                    default_ticker_name = list(backtest_tickers[asset_type].keys())[0] # 첫 번째 종목을 기본값으로
-                    selected_name = st.selectbox(f"{asset_type} 대표 종목", list(backtest_tickers[asset_type].keys()), index=0, key=f"backtest_{asset_type}")
-                    selected_backtest_tickers[asset_type] = backtest_tickers[asset_type][selected_name]
+                    # 안전하게 첫 번째 종목이 있는지 확인 후 기본값 설정
+                    if list(backtest_tickers[asset_type].keys()):
+                        default_ticker_name = list(backtest_tickers[asset_type].keys())[0]
+                        selected_name = st.selectbox(f"{asset_type} 대표 종목", list(backtest_tickers[asset_type].keys()), index=0, key=f"backtest_{asset_type}")
+                        selected_backtest_tickers[asset_type] = backtest_tickers[asset_type][selected_name]
+                    else:
+                        st.warning(f"{asset_type}에 선택 가능한 백테스팅 종목이 없습니다.")
+
 
             if not has_selectable_backtest_assets:
                 st.warning("선택하신 자산 중 백테스팅을 지원하는 종목이 없습니다. ETF, 주식, 채권, 금, 원자재 중에서 선택해주세요.")
