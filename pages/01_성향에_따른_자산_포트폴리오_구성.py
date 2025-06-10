@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import yfinance as yf
-import datetime # 날짜 처리를 위해 datetime 모듈 추가
+import datetime
 
 # --- 앱 설정 (가장 먼저 위치해야 함) ---
 st.set_page_config(layout="wide", page_title="AI 투자 도우미")
@@ -14,20 +14,17 @@ def get_stock_data(ticker, period="1y"):
     yfinance를 사용하여 주식/ETF 데이터를 가져오는 함수.
     'Adj Close' 데이터가 없을 경우 'Close' 데이터를 사용하고,
     데이터가 없으면 안전하게 빈 Series를 반환하여 호출 측에서 처리하도록 함.
-    (경고 메시지 출력 제거)
     """
     try:
         data = yf.download(ticker, period=period)
 
         if data.empty:
-            # 데이터가 아예 없을 경우에만 사용자에게 메시지 표시
             st.warning(f"'{ticker}' 종목에 대한 데이터를 찾을 수 없습니다. (데이터 없음)")
             return pd.Series(dtype='float64') # 빈 Series 반환
 
         if 'Adj Close' in data.columns and not data['Adj Close'].empty:
             return data['Adj Close']
         elif 'Close' in data.columns and not data['Close'].empty:
-            # 'Adj Close' 대신 'Close'를 사용할 때의 경고 메시지를 제거
             return data['Close']
         else:
             st.error(f"'{ticker}' 종목에 대한 'Adj Close' 또는 'Close' 데이터를 찾을 수 없습니다.")
@@ -132,32 +129,61 @@ else:
 
         asset_recommendations = {
             "금": {
-                "종목": {"SPDR Gold Shares (GLD)": "GLD"}, # 미국 ETF 예시
-                "설명": "금은 인플레이션 헤지 및 안전자산으로 선호됩니다. 달러 가치와 반대로 움직이는 경향이 있습니다. (ETF: GLD 등)"
+                "종목": {
+                    "SPDR Gold Shares (GLD)": "GLD", # 미국 금 ETF
+                    "iShares Gold Trust (IAU)": "IAU", # 미국 금 ETF
+                    "KODEX 골드선물(H)": "132030.KS", # 국내 금 ETF
+                    "KRX 금 시장": "N/A" # KRX 금 시장은 티커 없음
+                },
+                "설명": "금은 인플레이션 헤지 및 안전자산으로 선호됩니다. 달러 가치와 반대로 움직이는 경향이 있습니다. **KRX 금 시장**을 통해 실물 금에 투자하거나, **금 ETF**를 통해 간접 투자할 수 있습니다."
             },
             "채권": {
-                "종목": {"iShares 20+ Year Treasury Bond ETF (TLT)": "TLT"}, # 미국 장기채 ETF 예시
-                "설명": "채권은 주식에 비해 안정적인 수익을 제공하며, 경기 침체 시 가치가 상승할 수 있습니다. 금리 변동에 민감합니다. (ETF: TLT 등)"
+                "설명": "채권은 주식에 비해 안정적인 수익을 제공하며, 경기 침체 시 가치가 상승할 수 있습니다. 금리 변동에 민감합니다. 투자 성향에 따라 다양한 채권을 고려할 수 있습니다. **국고채**는 정부가 발행하여 안정성이 높고, **회사채**는 기업이 발행하여 수익률이 높지만 신용 위험이 있습니다. 만기에 따라 **단기채**, **중장기채**, **장기채**로 구분됩니다.",
+                "세부종목": {
+                    "단기채 (안정적, 낮은 수익률)": {
+                        "설명": "만기가 짧아 금리 변동에 덜 민감하고 안정적입니다. 단기 자금 운용에 적합합니다.",
+                        "종목": {"KBSTAR 국고채30년액티브": "306200.KS", "KOSEF 단기자금": "123530.KS"} # 예시로 국내 단기채 ETF 추가
+                    },
+                    "중장기채 (중간 위험, 중간 수익률)": {
+                        "설명": "금리 변동에 어느 정도 영향을 받지만, 장기채보다는 변동성이 작습니다.",
+                        "종목": {"KODEX 국고채3년": "114260.KS", "TIGER 국채10년": "148070.KS"}
+                    },
+                    "장기채 (공격적, 높은 변동성)": {
+                        "설명": "만기가 길어 금리 변동에 매우 민감하여 변동성이 크지만, 금리 하락 시 높은 수익률을 기대할 수 있습니다. 포트폴리오 분산에 활용됩니다.",
+                        "종목": {"iShares 20+ Year Treasury Bond ETF (TLT)": "TLT", "KODEX 미국채10년선물(H)": "308620.KS"}
+                    }
+                }
             },
             "CMA/파킹통장 (현금)": {
-                "종목": {"토스뱅크 파킹통장": "N/A"},
-                "설명": "단기 여유자금을 보관하며, 비교적 높은 금리의 이자를 매일 또는 매주 받을 수 있는 상품입니다. 비상 자금으로 활용하기 좋습니다."
+                "종목": {}, # 추천 종목 대신 링크 제공
+                "설명": "단기 여유자금을 보관하며, 비교적 높은 금리의 이자를 매일 또는 매주 받을 수 있는 상품입니다. 비상 자금으로 활용하기 좋습니다. **가장 높은 금리를 비교하여 선택하는 것이 중요합니다.**"
             },
             "적금": {
-                "종목": {"각 은행의 정기적금 상품": "N/A"},
-                "설명": "정해진 기간 동안 꾸준히 저축하며, 확정된 금리 수익을 얻을 수 있는 안전한 상품입니다. 목돈 마련에 유용합니다."
+                "종목": {}, # 추천 종목 대신 링크 제공
+                "설명": "정해진 기간 동안 꾸준히 저축하며, 확정된 금리 수익을 얻을 수 있는 안전한 상품입니다. 목돈 마련에 유용합니다. **은행별 최고 금리를 비교하여 선택하는 것이 중요합니다.**"
             },
             "ETF": {
-                "종목": {"KODEX 200": "069500.KS", "TIGER 미국S&P500": "360750.KS", "Invesco QQQ Trust (QQQ)": "QQQ"},
-                "설명": "다양한 자산에 분산 투자하는 펀드를 주식처럼 거래할 수 있습니다. 특정 지수, 산업, 국가에 투자하여 분산 효과를 누릴 수 있습니다."
+                "종목": {
+                    "KODEX 미국S&P500TR": "379810.KS", # S&P 500
+                    "TIGER 미국나스닥100": "133690.KS", # 나스닥 100
+                    "KODEX 미국나스닥100TR": "395380.KS", # 나스닥 100
+                    "SOL 미국배당다우존스": "446860.KS", # SCHD와 유사한 국내 ETF
+                    "ACE 미국배당다우존스": "449170.KS" # SCHD와 유사한 국내 ETF
+                },
+                "설명": "다양한 자산에 분산 투자하는 펀드를 주식처럼 거래할 수 있습니다. 특정 지수, 산업, 국가에 투자하여 분산 효과를 누릴 수 있습니다. **미국 주요 지수(S&P 500, 나스닥 100) 추종 ETF와 배당 성장 ETF(SCHD 유사)는 장기 투자에 적합합니다.**"
             },
             "주식": {
-                "종목": {"삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "네이버": "035420.KS"},
+                "종목": {"삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "네이버": "035420.KS", "카카오": "035720.KS"},
                 "설명": "개별 기업의 성장에 직접 투자하여 높은 수익을 추구할 수 있으나, 변동성이 매우 큽니다. 기업 분석과 시장 상황에 대한 이해가 필수적입니다."
             },
             "원자재": {
-                "종목": {"United States Oil Fund (USO)": "USO"}, # 원유 ETF 예시
-                "설명": "원유, 구리, 곡물 등 실물 자산에 투자합니다. 글로벌 경제 상황이나 공급망 이슈에 따라 가격 변동성이 큽니다."
+                "종목": {
+                    "United States Oil Fund (USO)": "USO", # 원유 ETF
+                    "Invesco DB Commodity Index Tracking Fund (DBC)": "DBC", # 종합 원자재 ETF
+                    "Aberdeen Standard Physical Platinum Shares ETF (PPLT)": "PPLT", # 백금 ETF
+                    "KODEX 구리선물(H)": "226340.KS" # 국내 구리 ETF
+                },
+                "설명": "원유, 구리, 곡물, 귀금속 등 실물 자산에 투자합니다. 글로벌 경제 상황이나 공급망 이슈에 따라 가격 변동성이 큽니다. 포트폴리오의 분산 효과를 높이는 데 활용될 수 있습니다."
             }
         }
 
@@ -166,53 +192,86 @@ else:
                 st.markdown(f"#### ➡️ {asset}")
                 st.write(f"**설명:** {asset_recommendations[asset]['설명']}")
 
-                recommended_tickers_info = asset_recommendations[asset]['종목']
-                if recommended_tickers_info:
-                    st.write(f"**추천 종목/ETF:**")
-                    for name, ticker in recommended_tickers_info.items():
-                        if ticker != "N/A":
-                            col1, col2, col3 = st.columns([0.3, 0.2, 0.5])
-                            col1.write(f"- **{name}**")
-                            # 실시간 데이터 연동 (yfinance)
-                            # period="2d"는 오늘 하루의 데이터만 가져오기에 주말이나 공휴일 등 데이터가 없을 수 있음.
-                            # 안정성을 위해 최소 2일치를 요청하고 최신 2개 데이터로 현재가와 전일 변화율 계산
-                            stock_data_series = get_stock_data(ticker, period="2d")
-
-                            # 데이터가 유효한지 꼼꼼히 확인
-                            if not stock_data_series.empty and len(stock_data_series) >= 1 and pd.api.types.is_numeric_dtype(stock_data_series):
-                                current_price = stock_data_series.iloc[-1]
-                                # 전일 종가가 있을 경우에만 일일 변화율 계산
-                                if len(stock_data_series) > 1 and pd.api.types.is_numeric_dtype(stock_data_series.iloc[-2]):
-                                    previous_price = stock_data_series.iloc[-2]
-                                    daily_change_percent = ((current_price - previous_price) / previous_price) * 100 if previous_price != 0 else 0
-                                    col2.metric("현재가", f"{current_price:,.2f}", f"{daily_change_percent:,.2f}%")
-                                else: # 당일 데이터만 있거나 전일 데이터가 숫자가 아닌 경우
-                                    col2.metric("현재가", f"{current_price:,.2f}")
-                                col3.write(f"(`{ticker}`)")
-                            else: # 데이터가 없거나 유효하지 않은 경우
-                                col2.write("데이터 없음")
-                                col3.write(f"(`{ticker}`)")
+                # 채권의 경우 세분화된 종목을 표시
+                if asset == "채권":
+                    for bond_type, bond_info in asset_recommendations[asset]['세부종목'].items():
+                        st.markdown(f"##### {bond_type}")
+                        st.write(f"**설명:** {bond_info['설명']}")
+                        st.write(f"**추천 종목/ETF:**")
+                        if bond_info['종목']:
+                            for name, ticker in bond_info['종목'].items():
+                                col1, col2, col3 = st.columns([0.3, 0.2, 0.5])
+                                col1.write(f"- **{name}**")
+                                stock_data_series = get_stock_data(ticker, period="2d")
+                                if not stock_data_series.empty and len(stock_data_series) >= 1 and pd.api.types.is_numeric_dtype(stock_data_series):
+                                    current_price = stock_data_series.iloc[-1]
+                                    if len(stock_data_series) > 1 and pd.api.types.is_numeric_dtype(stock_data_series.iloc[-2]):
+                                        previous_price = stock_data_series.iloc[-2]
+                                        daily_change_percent = ((current_price - previous_price) / previous_price) * 100 if previous_price != 0 else 0
+                                        col2.metric("현재가", f"{current_price:,.2f}", f"{daily_change_percent:,.2f}%")
+                                    else:
+                                        col2.metric("현재가", f"{current_price:,.2f}")
+                                    col3.write(f"(`{ticker}`)")
+                                else:
+                                    col2.write("데이터 없음")
+                                    col3.write(f"(`{ticker}`)")
                         else:
-                            st.write(f"- {name}")
+                            st.write("- (추천 종목 없음)")
+                # CMA/파킹통장 또는 적금은 링크로 대체
+                elif asset == "CMA/파킹통장 (현금)":
+                    st.markdown("---")
+                    st.markdown("[CMA/파킹 통장 금리 비교](https://new-m.pay.naver.com/savings/list/cma)")
+                    st.markdown("---")
+                elif asset == "적금":
+                    st.markdown("---")
+                    st.markdown("[예적금 금리 비교](https://new-m.pay.naver.com/savings/list/saving)")
+                    st.markdown("---")
+                # 그 외 자산군은 기존 방식대로 종목 표시
+                else:
+                    recommended_tickers_info = asset_recommendations[asset]['종목']
+                    if recommended_tickers_info:
+                        st.write(f"**추천 종목/ETF:**")
+                        for name, ticker in recommended_tickers_info.items():
+                            if ticker != "N/A": # N/A인 경우 현재가 표시하지 않음 (KRX 금 시장 등)
+                                col1, col2, col3 = st.columns([0.3, 0.2, 0.5])
+                                col1.write(f"- **{name}**")
+                                stock_data_series = get_stock_data(ticker, period="2d")
+
+                                if not stock_data_series.empty and len(stock_data_series) >= 1 and pd.api.types.is_numeric_dtype(stock_data_series):
+                                    current_price = stock_data_series.iloc[-1]
+                                    if len(stock_data_series) > 1 and pd.api.types.is_numeric_dtype(stock_data_series.iloc[-2]):
+                                        previous_price = stock_data_series.iloc[-2]
+                                        daily_change_percent = ((current_price - previous_price) / previous_price) * 100 if previous_price != 0 else 0
+                                        col2.metric("현재가", f"{current_price:,.2f}", f"{daily_change_percent:,.2f}%")
+                                    else:
+                                        col2.metric("현재가", f"{current_price:,.2f}")
+                                    col3.write(f"(`{ticker}`)")
+                                else:
+                                    col2.write("데이터 없음")
+                                    col3.write(f"(`{ticker}`)")
+                            else:
+                                st.write(f"- {name}") # N/A인 경우 티커 없이 이름만 표시 (예: KRX 금 시장)
                 st.markdown("---")
 
-        # 5. ISA 계좌 관련 팁
-        st.markdown("### 💡 투자 팁: ISA 계좌 활용")
-        st.info(
-            "주식, ETF 등 일부 금융 상품을 개인 계좌에서 구매하는 것보다 **ISA (Individual Savings Account) 계좌**를 통해 구매하는 것을 고려해보세요.\n"
-            "ISA 계좌는 일정 한도 내에서 **비과세 또는 저율 분리과세 혜택**을 받을 수 있어 절세에 유리합니다.\n"
-            "특히, **ETF**와 같은 상품은 ISA 계좌에서 매매차익에 대한 세금 혜택을 받을 수 있으니, 자세한 내용은 증권사에 문의하거나 관련 정보를 찾아보시길 권합니다.\n"
-            "**연금저축펀드**와 **IRP** 계좌도 노후 대비 및 세액공제 혜택이 있으니 함께 알아보시면 좋습니다."
-        )
+
+        # ISA 계좌 활용 팁을 ETF 섹션 바로 아래로 이동
+        if "ETF" in selected_assets:
+            st.markdown("### 💡 투자 팁: ISA 계좌 활용")
+            st.info(
+                "주식, ETF 등 일부 금융 상품을 개인 계좌에서 구매하는 것보다 **ISA (Individual Savings Account) 계좌**를 통해 구매하는 것을 고려해보세요.\n"
+                "ISA 계좌는 일정 한도 내에서 **비과세 또는 저율 분리과세 혜택**을 받을 수 있어 절세에 유리합니다.\n"
+                "특히, **ETF**와 같은 상품은 ISA 계좌에서 매매차익에 대한 세금 혜택을 받을 수 있으니, 자세한 내용은 증권사에 문의하거나 관련 정보를 찾아보시길 권합니다.\n"
+                "**연금저축펀드**와 **IRP** 계좌도 노후 대비 및 세액공제 혜택이 있으니 함께 알아보시면 좋습니다."
+            )
+            st.markdown("---")
+
 
         # 백테스팅 (간단한 예시)
-        st.markdown("---")
         st.markdown("### 📈 백테스팅 시뮬레이션 (예시)")
         st.markdown("선택된 자산 비중에 따라 **과거 데이터**로 포트폴리오 수익률을 **매우 간략하게** 시뮬레이션 합니다. **실제 수익률과는 차이가 있을 수 있습니다.**")
 
         # 백테스팅 기간 설정
-        # 현재 시간: Tuesday, June 10, 2025 at 6:53:36 PM KST.
-        current_date_for_default = datetime.date(2025, 6, 10) # 현재 날짜를 2025년 6월 10일로 가정
+        current_date_for_default = datetime.date(2025, 6, 10) # 기준 날짜 설정
         default_start_date = (current_date_for_default - pd.DateOffset(years=1)).date()
         default_end_date = current_date_for_default
 
@@ -224,11 +283,11 @@ else:
         else:
             # 백테스팅 가능한 종목 선택 (yfinance로 조회 가능한 종목)
             backtest_tickers = {
-                "ETF": {"KODEX 200": "069500.KS", "TIGER 미국S&P500": "360750.KS", "Invesco QQQ Trust (QQQ)": "QQQ"},
+                "ETF": {"KODEX 미국S&P500TR": "379810.KS", "TIGER 미국나스닥100": "133690.KS", "Invesco QQQ Trust (QQQ)": "QQQ", "SOL 미국배당다우존스": "446860.KS"},
                 "주식": {"삼성전자": "005930.KS", "SK하이닉스": "000660.KS"},
-                "채권": {"iShares 20+ Year Treasury Bond ETF (TLT)": "TLT"},
-                "금": {"SPDR Gold Shares (GLD)": "GLD"},
-                "원자재": {"United States Oil Fund (USO)": "USO"}
+                "채권": {"iShares 20+ Year Treasury Bond ETF (TLT)": "TLT", "KODEX 국고채3년": "114260.KS"},
+                "금": {"SPDR Gold Shares (GLD)": "GLD", "KODEX 골드선물(H)": "132030.KS"},
+                "원자재": {"United States Oil Fund (USO)": "USO", "KODEX 구리선물(H)": "226340.KS"}
             }
 
             # 선택된 자산에 해당하는 백테스팅 종목 추출 및 종목 선택 추가
@@ -237,10 +296,26 @@ else:
 
             has_selectable_backtest_assets = False
             for asset_type in selected_assets:
-                if asset_type in backtest_tickers and backtest_tickers[asset_type]:
+                # 채권의 경우 세분화된 종목 중 하나를 선택
+                if asset_type == "채권" and "세부종목" in asset_recommendations["채권"]:
+                    bond_options = {}
+                    for bond_category, info in asset_recommendations["채권"]["세부종목"].items():
+                        for name, ticker in info["종목"].items():
+                            bond_options[f"{bond_category} - {name}"] = ticker
+                    
+                    if bond_options:
+                        has_selectable_backtest_assets = True
+                        selected_option_name = st.selectbox(
+                            f"{asset_type} 대표 종목", 
+                            list(bond_options.keys()), 
+                            index=0, 
+                            key=f"backtest_{asset_type}"
+                        )
+                        selected_backtest_tickers[asset_type] = bond_options[selected_option_name]
+                # 그 외 자산군
+                elif asset_type in backtest_tickers and backtest_tickers[asset_type]:
                     has_selectable_backtest_assets = True
-                    # 안전하게 첫 번째 종목이 있는지 확인 후 기본값 설정
-                    if backtest_tickers[asset_type]: # 딕셔너리가 비어있지 않은지 확인
+                    if backtest_tickers[asset_type]:
                         default_ticker_name = list(backtest_tickers[asset_type].keys())[0]
                         selected_name = st.selectbox(f"{asset_type} 대표 종목", list(backtest_tickers[asset_type].keys()), index=0, key=f"backtest_{asset_type}")
                         selected_backtest_tickers[asset_type] = backtest_tickers[asset_type][selected_name]
@@ -259,19 +334,15 @@ else:
                     st.subheader("🗓️ 백테스팅 결과")
 
                     total_portfolio_returns = pd.Series(dtype=float)
-                    initial_data_loaded = False # 첫 번째 자산의 데이터를 성공적으로 로드했는지 여부
+                    initial_data_loaded = False
 
-                    # 각 자산의 데이터를 불러와서 포트폴리오 수익률 계산
                     for asset, allocation in portfolio.items():
-                        # 할당 비중이 0보다 크고, 백테스팅 종목이 선택된 경우에만 진행
                         if allocation > 0 and asset in selected_backtest_tickers:
                             ticker_symbol = selected_backtest_tickers[asset]
                             st.write(f"**{asset} ({ticker_symbol})** 데이터 로딩 중...")
-                            # 넉넉한 기간으로 데이터 불러오고 나중에 자르기
-                            asset_data_series = get_stock_data(ticker_symbol, period="5y") # Series 반환
+                            asset_data_series = get_stock_data(ticker_symbol, period="5y")
 
-                            if not asset_data_series.empty and pd.api.types.is_numeric_dtype(asset_data_series): # 데이터가 비어있지 않고 숫자형인지 확인
-                                # 선택한 기간으로 자르기
+                            if not asset_data_series.empty and pd.api.types.is_numeric_dtype(asset_data_series):
                                 asset_data_period = asset_data_series[(asset_data_series.index.date >= start_date) & (asset_data_series.index.date <= end_date)]
 
                                 if not asset_data_period.empty:
@@ -281,10 +352,8 @@ else:
                                         total_portfolio_returns = daily_returns * (allocation / 100)
                                         initial_data_loaded = True
                                     else:
-                                        # 공통 날짜 인덱스를 기준으로 조인하여 데이터 누락 방지
                                         common_index = total_portfolio_returns.index.intersection(daily_returns.index)
                                         if not common_index.empty:
-                                            # 공통 인덱스로 Series 자르기 전에 충분히 큰지 확인
                                             if len(daily_returns.loc[common_index]) > 0 and len(total_portfolio_returns.loc[common_index]) > 0:
                                                 total_portfolio_returns = total_portfolio_returns.loc[common_index] + (daily_returns.loc[common_index] * (allocation / 100))
                                             else:
