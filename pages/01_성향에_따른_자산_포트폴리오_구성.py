@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import yfinance as yf
+import datetime # datetime 모듈 추가
 
 # --- 앱 설정 (가장 먼저 위치해야 함) ---
 st.set_page_config(layout="wide", page_title="AI 투자 도우미")
@@ -11,13 +12,15 @@ st.set_page_config(layout="wide", page_title="AI 투자 도우미")
 def get_stock_data(ticker, period="1y"):
     """
     yfinance를 사용하여 주식/ETF 데이터를 가져오는 함수
-    'Adj Close' 데이터가 없을 경우 'Close' 데이터를 사용하도록 폴백 로직 추가
+    'Adj Close' 데이터가 없을 경우 'Close' 데이터를 사용하고,
+    데이터가 없으면 안전하게 None을 반환하도록 개선.
     """
     try:
         data = yf.download(ticker, period=period)
+
         if data.empty:
             st.warning(f"'{ticker}' 종목에 대한 데이터를 찾을 수 없습니다. (데이터 없음)")
-            return pd.Series(dtype='float64')
+            return None # 데이터가 없으면 None 반환
 
         if 'Adj Close' in data.columns and not data['Adj Close'].empty:
             return data['Adj Close']
@@ -26,10 +29,11 @@ def get_stock_data(ticker, period="1y"):
             return data['Close']
         else:
             st.error(f"'{ticker}' 종목에 대한 'Adj Close' 또는 'Close' 데이터를 찾을 수 없습니다.")
-            return pd.Series(dtype='float64') # 빈 시리즈 반환 시 dtype 지정
+            return None # 유효한 컬럼이 없으면 None 반환
+
     except Exception as e:
         st.error(f"'{ticker}' 종목 데이터를 불러오는 중 예외가 발생했습니다: {e}")
-        return pd.Series(dtype='float64') # 빈 시리즈 반환 시 dtype 지정
+        return None # 예외 발생 시 None 반환
 
 # --- 앱 본문 시작 ---
 st.title("💰 AI 투자 도우미: 맞춤형 자산 포트폴리오 구성")
@@ -72,7 +76,7 @@ else:
         if asset in base_allocations:
             base_percent = base_allocations[asset]
             # 안정 자산 (현금, 채권, 적금)은 리스크 성향이 낮을수록 비중 증가
-            if asset in ["CMA/파킹통장 (현금)", "채권", " 적금"]: # <-- '적금' 앞에 공백 제거
+            if asset in ["CMA/파킹통장 (현금)", "채권", "적금"]:
                 portfolio[asset] = base_percent + (50 - risk_tolerance) * 0.4
             # 공격 자산 (주식, ETF, 원자재)은 리스크 성향이 높을수록 비중 증가
             elif asset in ["ETF", "주식", "원자재"]:
@@ -168,19 +172,19 @@ else:
                             col1, col2, col3 = st.columns([0.3, 0.2, 0.5])
                             col1.write(f"- **{name}**")
                             # 실시간 데이터 연동 (yfinance)
-                            stock_data = get_stock_data(ticker, period="1d") # 당일 데이터만 가져와서 현재가 확인
+                            stock_data_series = get_stock_data(ticker, period="1d") # Series 또는 None 반환
 
-                            if not stock_data.empty: # 데이터가 있을 경우에만 처리
-                                current_price = stock_data.iloc[-1]
+                            if stock_data_series is not None and not stock_data_series.empty: # None이 아니고 비어있지 않을 경우에만 처리
+                                current_price = stock_data_series.iloc[-1]
                                 # 전일 종가가 있을 경우에만 일일 변화율 계산
-                                if len(stock_data) > 1:
-                                    previous_price = stock_data.iloc[-2]
+                                if len(stock_data_series) > 1:
+                                    previous_price = stock_data_series.iloc[-2]
                                     daily_change_percent = ((current_price - previous_price) / previous_price) * 100 if previous_price != 0 else 0
                                     col2.metric("현재가", f"{current_price:,.2f}", f"{daily_change_percent:,.2f}%")
                                 else: # 당일 데이터만 있는 경우 (장이 시작하자마자 등)
                                     col2.metric("현재가", f"{current_price:,.2f}")
                                 col3.write(f"(`{ticker}`)")
-                            else: # 데이터가 없는 경우
+                            else: # 데이터가 없거나 유효하지 않은 경우
                                 col2.write("데이터 없음")
                                 col3.write(f"(`{ticker}`)")
                         else:
@@ -202,12 +206,11 @@ else:
         st.markdown("선택된 자산 비중에 따라 **과거 데이터**로 포트폴리오 수익률을 **매우 간략하게** 시뮬레이션 합니다. **실제 수익률과는 차이가 있을 수 있습니다.**")
 
         # 백테스팅 기간 설정
-        # 현재 날짜 (2025-06-10) 기준
         # 현재 시간으로 정확한 날짜를 가져오기 위해 datetime 모듈 사용
-        import datetime
-        current_date = datetime.date(2025, 6, 10) # 현재 날짜를 2025년 6월 10일로 가정
-        default_start_date = (current_date - pd.DateOffset(years=1)).date()
-        default_end_date = current_date
+        # 현재 시간: Tuesday, June 10, 2025 at 6:50:54 PM KST
+        current_date_for_default = datetime.date(2025, 6, 10) # 현재 날짜를 2025년 6월 10일로 가정
+        default_start_date = (current_date_for_default - pd.DateOffset(years=1)).date()
+        default_end_date = current_date_for_default
 
         start_date = st.date_input("시작 날짜", default_start_date)
         end_date = st.date_input("종료 날짜", default_end_date)
@@ -233,7 +236,7 @@ else:
                 if asset_type in backtest_tickers and backtest_tickers[asset_type]:
                     has_selectable_backtest_assets = True
                     # 안전하게 첫 번째 종목이 있는지 확인 후 기본값 설정
-                    if list(backtest_tickers[asset_type].keys()):
+                    if backtest_tickers[asset_type]: # 딕셔너리가 비어있지 않은지 확인
                         default_ticker_name = list(backtest_tickers[asset_type].keys())[0]
                         selected_name = st.selectbox(f"{asset_type} 대표 종목", list(backtest_tickers[asset_type].keys()), index=0, key=f"backtest_{asset_type}")
                         selected_backtest_tickers[asset_type] = backtest_tickers[asset_type][selected_name]
@@ -252,19 +255,20 @@ else:
                     st.subheader("🗓️ 백테스팅 결과")
 
                     total_portfolio_returns = pd.Series(dtype=float)
-                    initial_data_loaded = False
+                    initial_data_loaded = False # 첫 번째 자산의 데이터를 성공적으로 로드했는지 여부
 
                     # 각 자산의 데이터를 불러와서 포트폴리오 수익률 계산
                     for asset, allocation in portfolio.items():
+                        # 할당 비중이 0보다 크고, 백테스팅 종목이 선택된 경우에만 진행
                         if allocation > 0 and asset in selected_backtest_tickers:
                             ticker_symbol = selected_backtest_tickers[asset]
                             st.write(f"**{asset} ({ticker_symbol})** 데이터 로딩 중...")
                             # 넉넉한 기간으로 데이터 불러오고 나중에 자르기
-                            asset_data = get_stock_data(ticker_symbol, period="5y") # 넉넉하게 5년치 데이터 가져오기
+                            asset_data_series = get_stock_data(ticker_symbol, period="5y") # Series 또는 None 반환
 
-                            if not asset_data.empty:
+                            if asset_data_series is not None and not asset_data_series.empty:
                                 # 선택한 기간으로 자르기
-                                asset_data_period = asset_data[(asset_data.index.date >= start_date) & (asset_data.index.date <= end_date)]
+                                asset_data_period = asset_data_series[(asset_data_series.index.date >= start_date) & (asset_data_series.index.date <= end_date)]
 
                                 if not asset_data_period.empty:
                                     daily_returns = asset_data_period.pct_change().dropna()
@@ -276,7 +280,11 @@ else:
                                         # 공통 날짜 인덱스를 기준으로 조인하여 데이터 누락 방지
                                         common_index = total_portfolio_returns.index.intersection(daily_returns.index)
                                         if not common_index.empty:
-                                            total_portfolio_returns = total_portfolio_returns.loc[common_index] + (daily_returns.loc[common_index] * (allocation / 100))
+                                            # 공통 인덱스로 Series 자르기 전에 충분히 큰지 확인
+                                            if len(daily_returns.loc[common_index]) > 0 and len(total_portfolio_returns.loc[common_index]) > 0:
+                                                total_portfolio_returns = total_portfolio_returns.loc[common_index] + (daily_returns.loc[common_index] * (allocation / 100))
+                                            else:
+                                                st.warning(f"'{asset}' ({ticker_symbol})과 다른 자산 간의 공통 데이터 기간이 너무 짧거나 데이터가 부족합니다.")
                                         else:
                                             st.warning(f"'{asset}' ({ticker_symbol})과 다른 자산 간의 공통 데이터 기간이 부족하여 합산할 수 없습니다.")
 
