@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import yfinance as yf # 실시간 데이터 연동을 위한 라이브러리
+import yfinance as yf
 
 # --- 앱 설정 (가장 먼저 위치해야 함) ---
 st.set_page_config(layout="wide", page_title="AI 투자 도우미")
@@ -11,12 +11,20 @@ st.set_page_config(layout="wide", page_title="AI 투자 도우미")
 def get_stock_data(ticker, period="1y"):
     """
     yfinance를 사용하여 주식/ETF 데이터를 가져오는 함수
+    'Adj Close' 데이터가 없을 경우 'Close' 데이터를 사용하도록 폴백 로직 추가
     """
     try:
         data = yf.download(ticker, period=period)
-        return data['Adj Close']
+        if 'Adj Close' in data.columns:
+            return data['Adj Close']
+        elif 'Close' in data.columns:
+            st.warning(f"'{ticker}' 종목에 대한 'Adj Close' 데이터를 찾을 수 없어 'Close' 데이터를 사용합니다.")
+            return data['Close']
+        else:
+            st.error(f"'{ticker}' 종목에 대한 'Adj Close' 또는 'Close' 데이터를 찾을 수 없습니다.")
+            return pd.Series(dtype='float64') # 빈 시리즈 반환 시 dtype 지정
     except Exception as e:
-        st.warning(f"'{ticker}' 종목 데이터를 불러오는 데 실패했습니다: {e}")
+        st.error(f"'{ticker}' 종목 데이터를 불러오는 중 예외가 발생했습니다: {e}")
         return pd.Series(dtype='float64') # 빈 시리즈 반환 시 dtype 지정
 
 # --- 앱 본문 시작 ---
@@ -114,7 +122,7 @@ else:
 
         asset_recommendations = {
             "금": {
-                "종목": {"SPDR Gold Shares (GLD)": "GLD"}, # 미국 ETF 예시, 한국 금선물 ETF Ticker는 yfinance에서 조회 어려움
+                "종목": {"SPDR Gold Shares (GLD)": "GLD"}, # 미국 ETF 예시
                 "설명": "금은 인플레이션 헤지 및 안전자산으로 선호됩니다. 달러 가치와 반대로 움직이는 경향이 있습니다. (ETF: GLD 등)"
             },
             "채권": {
@@ -189,12 +197,14 @@ else:
         st.markdown("선택된 자산 비중에 따라 **과거 데이터**로 포트폴리오 수익률을 **매우 간략하게** 시뮬레이션 합니다. **실제 수익률과는 차이가 있을 수 있습니다.**")
 
         # 백테스팅 기간 설정
-        default_start_date = pd.to_datetime('2024-06-01').date() # 오늘 날짜 기준 1년 전
-        default_end_date = pd.to_datetime('2025-06-01').date() # 오늘 날짜 (미래 날짜일 경우 현재 날짜로 조정)
+        # 현재 날짜 (2025-06-10) 기준
+        current_date = pd.to_datetime('2025-06-10').date()
+        default_start_date = (current_date - pd.DateOffset(years=1)).date() # 오늘 날짜 기준 1년 전
+        default_end_date = current_date # 오늘 날짜
 
         start_date = st.date_input("시작 날짜", default_start_date)
         end_date = st.date_input("종료 날짜", default_end_date)
-        
+
         if start_date >= end_date:
             st.error("시작 날짜는 종료 날짜보다 빨라야 합니다.")
         else:
@@ -210,7 +220,7 @@ else:
             # 선택된 자산에 해당하는 백테스팅 종목 추출 및 종목 선택 추가
             selected_backtest_tickers = {}
             st.write("각 자산군에서 백테스팅에 사용할 대표 종목을 선택해주세요:")
-            
+
             has_selectable_backtest_assets = False
             for asset_type in selected_assets:
                 if asset_type in backtest_tickers and backtest_tickers[asset_type]:
@@ -221,7 +231,7 @@ else:
 
             if not has_selectable_backtest_assets:
                 st.warning("선택하신 자산 중 백테스팅을 지원하는 종목이 없습니다. ETF, 주식, 채권, 금, 원자재 중에서 선택해주세요.")
-            
+
             if st.button("백테스팅 시작"):
                 if not selected_backtest_tickers:
                     st.warning("백테스팅을 위해 최소 1개 이상의 자산군에서 종목을 선택해주세요.")
@@ -231,7 +241,7 @@ else:
 
                     total_portfolio_returns = pd.Series(dtype=float)
                     initial_data_loaded = False
-                    
+
                     # 각 자산의 데이터를 불러와서 포트폴리오 수익률 계산
                     for asset, allocation in portfolio.items():
                         if allocation > 0 and asset in selected_backtest_tickers:
@@ -263,7 +273,7 @@ else:
                                     st.warning(f"'{asset}' ({ticker_symbol})에 대한 선택 기간 내 데이터가 없습니다.")
                             else:
                                 st.warning(f"'{asset}' ({ticker_symbol})에 대한 데이터를 찾을 수 없습니다. Ticker가 정확한지 확인해주세요.")
-                    
+
                     if not total_portfolio_returns.empty and initial_data_loaded:
                         cumulative_returns = (1 + total_portfolio_returns).cumprod()
 
