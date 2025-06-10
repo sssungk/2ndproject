@@ -35,50 +35,139 @@ day_by_day_locations = {
 }
 
 # ---------------------------
-# 해당 일자의 일정 정보
+# 해당 일자의 일정 정보 및 이미지
 # ---------------------------
 day_by_day_schedule = {
     "1일차": {
-        "오전": "괌 공항 도착, 렌터카 수령 또는 셔틀 이용",
-        "점심": "숙소 근처 로컬 식당 (예: Shirley's Coffee Shop)",
-        "오후": "🏖️ 타무닝 해변 산책 및 호텔 체크인",
-        "저녁": "Tony Roma's에서 립 스테이크 또는 해산물 디너"
+        "오전": {
+            "activity": "괌 공항 도착, 렌터카 수령 또는 셔틀 이용",
+            "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/A.B._Won_Pat_International_Airport_Guam_terminal.jpg/1200px-A.B._Won_Pat_International_Airport_Guam_terminal.jpg"
+        },
+        "점심": {
+            "activity": "숙소 근처 로컬 식당 (예: Shirley's Coffee Shop)",
+            "image": "https://media-cdn.tripadvisor.com/media/photo-s/0e/43/e7/31/shirley-s-coffee-shop.jpg"
+        },
+        "오후": {
+            "activity": "🏖️ 타무닝 해변 산책 및 호텔 체크인",
+            "image": "https://upload.wikimedia.org/wikipedia/commons/e/ed/Tumon_Bay_Guam_2016.jpg"
+        },
+        "저녁": {
+            "activity": "Tony Roma's에서 립 스테이크 또는 해산물 디너",
+            "image": "https://i.ytimg.com/vi/qQ8m_J0_r2w/maxresdefault.jpg"
+        }
     },
     "2일차": {
-        "오전": "🏝️ 투몬 비치에서 해수욕 및 스노클링",
-        "점심": "Beachin' Shrimp 투몬점에서 쉬림프 타코",
-        "오후": "💑 사랑의 절벽 방문 및 전망 감상",
-        "저녁": "Jamaican Grill에서 가족 BBQ 세트"
+        "오전": {
+            "activity": "🏝️ 투몬 비치에서 해수욕 및 스노클링",
+            "image": "https://a.travel-assets.com/findyours-php/viewfinder/images/res70/20000/20108-Tumon-Beach.jpg"
+        },
+        "점심": {
+            "activity": "Beachin' Shrimp 투몬점에서 쉬림프 타코",
+            "image": "https://media-cdn.tripadvisor.com/media/photo-s/0e/80/7e/17/shrimp-tacos.jpg"
+        },
+        "오후": {
+            "activity": "💑 사랑의 절벽 방문 및 전망 감상",
+            "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/Two_Lovers_Point.jpg/1200px-Two_Lovers_Point.jpg"
+        },
+        "저녁": {
+            "activity": "Jamaican Grill에서 가족 BBQ 세트",
+            "image": "https://media-cdn.tripadvisor.com/media/photo-s/0e/8c/5e/2c/jamaican-grill.jpg"
+        }
     },
     "3일차": {
-        "오전": "🐬 돌핀 와칭 투어 (오전 9시 출발, 약 3시간)",
-        "점심": "피쉬아이 마린파크 레스토랑 뷔페",
-        "오후": "🐟 피쉬아이 수족관 및 해양 전망 타워 관람",
-        "저녁": "숙소 복귀 후 근처에서 간단한 식사"
+        "오전": {
+            "activity": "🐬 돌핀 와칭 투어 (오전 9시 출발, 약 3시간)",
+            "image": "https://blog.koream.com/wp-content/uploads/2018/06/guam-dolphin-watching.jpg"
+        },
+        "점심": {
+            "activity": "피쉬아이 마린파크 레스토랑 뷔페",
+            "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRz-4sX2q7X_1-g5gL5gQ3p-0l-1Q-7z-6_A&s"
+        },
+        "오후": {
+            "activity": "🐟 피쉬아이 수족관 및 해양 전망 타워 관람",
+            "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Fish_Eye_Marine_Park_Piti_Guam.jpg/1200px-Fish_Eye_Marine_Park_Piti_Guam.jpg"
+        },
+        "저녁": {
+            "activity": "숙소 복귀 후 근처에서 간단한 식사",
+            "image": "https://dimg.donga.com/a/600/0/90/5/wps/NEWS/IMAGE/2024/02/09/123381669.2.jpg"
+        }
     },
     "4일차": {
-        "오전": "🛍️ 괌 프리미엄 아울렛 쇼핑",
-        "점심": "Food Court 또는 Panda Express",
-        "오후": "⛪ 아가나 대성당 관람 및 주변 거리 산책",
-        "저녁": "Caliente에서 멕시칸 음식 즐기기"
+        "오전": {
+            "activity": "🛍️ 괌 프리미엄 아울렛 쇼핑",
+            "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Guam_Premier_Outlets.jpg/1200px-Guam_Premier_Outlets.jpg"
+        },
+        "점심": {
+            "activity": "Food Court 또는 Panda Express",
+            "image": "https://media-cdn.tripadvisor.com/media/photo-s/0e/d9/d2/8c/food-court.jpg"
+        },
+        "오후": {
+            "activity": "⛪ 아가나 대성당 관람 및 주변 거리 산책",
+            "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Dulce_Nombre_de_Maria_Cathedral_Basilica_Guam.jpg/1200px-Dulce_Nombre_de_Maria_Cathedral_Basilica_Guam.jpg"
+        },
+        "저녁": {
+            "activity": "Caliente에서 멕시칸 음식 즐기기",
+            "image": "https://media-cdn.tripadvisor.com/media/photo-s/0e/c4/b0/0f/caliente-guam.jpg"
+        }
     },
     "5일차": {
-        "오전": "🏞️ 이나라한 자연풀장에서 수영 및 사진 촬영",
-        "점심": "마을 근처 로컬식당에서 전통 음식",
-        "오후": "자연 탐방 또는 원주민 마을 구경",
-        "저녁": "숙소 디너 뷔페 또는 랍스터 요리"
+        "오전": {
+            "activity": "🏞️ 이나라한 자연풀장에서 수영 및 사진 촬영",
+            "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Inarajan_Natural_Pools.jpg/1200px-Inarajan_Natural_Pools.jpg"
+        },
+        "점심": {
+            "activity": "마을 근처 로컬식당에서 전통 음식",
+            "image": "https://media-cdn.tripadvisor.com/media/photo-s/0f/0e/1c/2a/local-food.jpg"
+        },
+        "오후": {
+            "activity": "자연 탐방 또는 원주민 마을 구경",
+            "image": "https://media-cdn.tripadvisor.com/media/photo-s/0d/b1/7d/5a/chamorro-village.jpg"
+        },
+        "저녁": {
+            "activity": "숙소 디너 뷔페 또는 랍스터 요리",
+            "image": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRz-4sX2q7X_1-g5gL5gQ3p-0l-1Q-7z-6_A&s" # Example: Placeholder image if specific one not available
+        }
     },
     "6일차": {
-        "오전": "호텔 수영장, 마사지 등 자유 일정",
-        "점심": "숙소 내 레스토랑 또는 인근 까페",
-        "오후": "🌅 석양 크루즈 탑승 (선택, 오후 5시~)",
-        "저녁": "크루즈 내 해산물 뷔페 또는 야시장"
+        "오전": {
+            "activity": "호텔 수영장, 마사지 등 자유 일정",
+            "image": "https://t-cf.bstatic.com/xdata/images/hotel/max1024x768/32570075.jpg?k=b4e3a4e9b9c0f9a2d0c2f8f7b7f7f7f7&o=&s"
+        },
+        "점심": {
+            "activity": "숙소 내 레스토랑 또는 인근 까페",
+            "image": "https://img.traveltriangle.com/blog/wp-content/uploads/2019/02/The-Beach-Bar-Grill-at-Dusit-Thani-Guam-Resort.jpg"
+        },
+        "오후": {
+            "activity": "🌅 석양 크루즈 탑승 (선택, 오후 5시~)",
+            "image": "https://assets.traveltriangle.com/blog/wp-content/uploads/2019/02/Sunset-Dinner-Cruise-in-Guam.jpg"
+        },
+        "저녁": {
+            "activity": "크루즈 내 해산물 뷔페 또는 야시장",
+            "image": "https://img.traveltriangle.com/blog/wp-content/uploads/2019/02/Chamorro-Village-Night-Market.jpg"
+        }
     },
     "7일차": {
-        "오전": "호텔 체크아웃 및 공항 이동",
-        "점심": "공항 내 간단한 샌드위치 또는 컵라면",
-        "오후": "✈️ 귀국"
+        "오전": {
+            "activity": "호텔 체크아웃 및 공항 이동",
+            "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/A.B._Won_Pat_International_Airport_Guam_terminal.jpg/1200px-A.B._Won_Pat_International_Airport_Guam_terminal.jpg"
+        },
+        "점심": {
+            "activity": "공항 내 간단한 샌드위치 또는 컵라면",
+            "image": "https://dimg.donga.com/a/600/0/90/5/wps/NEWS/IMAGE/2024/02/09/123381669.2.jpg" # Generic food image
+        },
+        "오후": {
+            "activity": "✈️ 귀국",
+            "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Boeing_747-400_Korean_Air.jpg/1200px-Boeing_747-400_Korean_Air.jpg"
+        }
     }
+}
+
+# Define clock emoji colors
+CLOCK_EMOJIS = {
+    "오전": "⏰", # Blue/Morning
+    "점심": "🕛", # Green/Noon
+    "오후": "🕞", # Orange/Afternoon
+    "저녁": "🌙"  # Purple/Night
 }
 
 # ---------------------------
@@ -110,8 +199,12 @@ day_of_week = current_date.strftime("(%A)")
 st.header(f"🗓️ {selected_day} - {current_date.strftime('%Y-%m-%d')} {day_of_week}")
 schedule = day_by_day_schedule[selected_day]
 
-for time, activity in schedule.items():
-    st.markdown(f"### ⏰ {time}\n- {activity}")
+for time, details in schedule.items():
+    emoji = CLOCK_EMOJIS.get(time, "⏰") # Get colored emoji
+    st.markdown(f"### {emoji} {time}\n- {details['activity']}")
+    if details['image']:
+        st.image(details['image'], caption=details['activity'], use_column_width=True)
+    st.markdown("---") # Add a separator
 
 # 지도 표시 (해당 일자의 장소들)
 if selected_day in day_by_day_locations:
