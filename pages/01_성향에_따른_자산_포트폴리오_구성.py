@@ -38,10 +38,7 @@ st.title("💰 AI 투자 도우미: 맞춤형 자산 포트폴리오 구성")
 # --- 사이드바 섹션 선택 ---
 st.sidebar.header("메뉴")
 menu_options = [
-    "시작하기 / 투자 위험 고지",
-    "📊 나의 투자 성향 선택",
-    "📝 포트폴리오 자산 선택",
-    "📈 추천 종목 및 ETF",
+    "시작하기 & 포트폴리오 설정", # 통합된 섹션
     "💸 월별 투자 가이드"
 ]
 selected_section = st.sidebar.radio("원하는 섹션으로 이동", menu_options)
@@ -51,7 +48,8 @@ st.sidebar.markdown("© 2025 AI 투자 도우미")
 
 # --- 조건부 렌더링 시작 ---
 
-if selected_section == "시작하기 / 투자 위험 고지":
+if selected_section == "시작하기 & 포트폴리오 설정":
+    # 1. 투자 위험 고지
     st.markdown("---")
     st.markdown("### ⚠️ 중요: 투자 위험 고지")
     st.warning(
@@ -61,26 +59,17 @@ if selected_section == "시작하기 / 투자 위험 고지":
         "**투자 결정은 반드시 본인의 판단과 책임 하에 이루어져야 합니다.**\n"
         "전문가와 상담하여 신중하게 투자하시기를 강력히 권고합니다."
     )
-    st.info("시작하려면 왼쪽 사이드바에서 메뉴를 선택해주세요.")
 
-elif selected_section == "📊 나의 투자 성향 선택":
+    # 2. 투자 성향 슬라이더
     st.markdown("---")
     st.markdown("### 📊 나의 투자 성향 선택")
     st.markdown("0은 **가장 안정적인 투자**를 선호하며, 100은 **가장 공격적인 투자**를 선호합니다.")
+    # key를 main으로 변경하여 다른 섹션과의 충돌 방지
     risk_tolerance = st.slider("나의 투자 성향", 0, 100, 50, key="risk_tolerance_main")
     st.info(f"현재 선택하신 투자 성향은 **{risk_tolerance}** 입니다.")
-
-    # 이 섹션에서 설정된 risk_tolerance 값을 다른 섹션에서도 사용할 수 있도록 session_state에 저장
     st.session_state['risk_tolerance'] = risk_tolerance
 
-elif selected_section == "📝 포트폴리오 자산 선택":
-    # risk_tolerance가 설정되어 있지 않으면 초기값으로 설정하거나 경고
-    if 'risk_tolerance' not in st.session_state:
-        st.session_state['risk_tolerance'] = 50 # 기본값 설정
-        st.warning("투자 성향이 선택되지 않았습니다. 기본값인 '50'으로 설정됩니다. '나의 투자 성향 선택' 섹션에서 먼저 선택해주세요.")
-    
-    risk_tolerance = st.session_state['risk_tolerance']
-
+    # 3. 포트폴리오 구성 자산 선택
     st.markdown("---")
     st.markdown("### 📝 포트폴리오에 포함할 자산 선택")
     st.markdown("자신이 관심 있는 자산군을 선택해주세요. 선택하신 성향에 맞춰 자산 비중을 추천해 드립니다.")
@@ -153,13 +142,7 @@ elif selected_section == "📝 포트폴리오 자산 선택":
             else:
                 st.warning("선택된 자산 비중이 너무 작아 차트를 그릴 수 없습니다. 다른 자산을 선택해주세요.")
 
-elif selected_section == "📈 추천 종목 및 ETF":
-    # 필요한 session_state 값들을 가져오거나 기본값 설정
-    if 'selected_assets' not in st.session_state:
-        st.warning("먼저 '포트폴리오 자산 선택' 섹션에서 자산을 선택해주세요.")
-        st.stop()
-    selected_assets = st.session_state['selected_assets']
-
+    # 4. 각 자산별 추천 종목 또는 ETF
     st.markdown("---")
     st.markdown("### 📈 추천 종목 및 ETF")
     st.markdown("선택하신 자산별로 추천하는 종목 또는 ETF입니다. 현재 가격은 `yfinance`를 통해 조회됩니다. 실제 투자는 신중하게 결정해주세요.")
@@ -231,81 +214,86 @@ elif selected_section == "📈 추천 종목 및 ETF":
         }
     }
 
-    for asset in selected_assets:
-        if asset in asset_recommendations:
-            st.markdown(f"#### ➡️ {asset}")
-            st.write(f"**설명:** {asset_recommendations[asset]['설명']}")
+    # selected_assets가 없는 경우를 대비하여 체크
+    if 'selected_assets' in st.session_state and st.session_state['selected_assets']:
+        for asset in st.session_state['selected_assets']:
+            if asset in asset_recommendations:
+                st.markdown(f"#### ➡️ {asset}")
+                st.write(f"**설명:** {asset_recommendations[asset]['설명']}")
 
-            if asset == "ETF":
-                st.markdown("### 💡 투자 팁: ISA 계좌 활용")
-                st.info(
-                    "주식, ETF 등 일부 금융 상품을 개인 계좌에서 구매하는 것보다 **ISA (Individual Savings Account) 계좌**를 통해 구매하는 것을 고려해보세요.\n"
-                    "ISA 계좌는 일정 한도 내에서 **비과세 또는 저율 분리과세 혜택**을 받을 수 있어 절세에 유리합니다.\n"
-                    "특히, **ETF**와 같은 상품은 ISA 계좌에서 매매차익에 대한 세금 혜택을 받을 수 있으니, 자세한 내용은 증권사에 문의하거나 관련 정보를 찾아보시길 권합니다.\n"
-                    "**연금저축펀드**와 **IRP** 계좌도 노후 대비 및 세액공제 혜택이 있으니 함께 알아보시면 좋습니다."
-                )
-                st.markdown("---")
+                if asset == "ETF":
+                    st.markdown("### 💡 투자 팁: ISA 계좌 활용")
+                    st.info(
+                        "주식, ETF 등 일부 금융 상품을 개인 계좌에서 구매하는 것보다 **ISA (Individual Savings Account) 계좌**를 통해 구매하는 것을 고려해보세요.\n"
+                        "ISA 계좌는 일정 한도 내에서 **비과세 또는 저율 분리과세 혜택**을 받을 수 있어 절세에 유리합니다.\n"
+                        "특히, **ETF**와 같은 상품은 ISA 계좌에서 매매차익에 대한 세금 혜택을 받을 수 있으니, 자세한 내용은 증권사에 문의하거나 관련 정보를 찾아보시길 권합니다.\n"
+                        "**연금저축펀드**와 **IRP** 계좌도 노후 대비 및 세액공제 혜택이 있으니 함께 알아보시면 좋습니다."
+                    )
+                    st.markdown("---")
 
-            if asset == "채권":
-                for bond_type, bond_info in asset_recommendations[asset]['세부종목'].items():
-                    st.markdown(f"##### {bond_type}")
-                    st.write(f"**설명:** {bond_info['설명']}")
-                    st.write(f"**추천 종목/ETF:**")
-                    if bond_info['종목']:
-                        for name, ticker in bond_info['종목'].items():
-                            col1, col2 = st.columns([0.5, 0.5])
-                            col1.write(f"- **{name}**")
-                            stock_data_series = get_stock_data(ticker, period="2d")
-                            if not stock_data_series.empty and len(stock_data_series) >= 1 and pd.api.types.is_numeric_dtype(stock_data_series):
-                                current_price = stock_data_series.iloc[-1]
-                                if len(stock_data_series) > 1 and pd.api.types.is_numeric_dtype(stock_data_series.iloc[-2]):
-                                    previous_price = stock_data_series.iloc[-2]
-                                    daily_change_percent = ((current_price - previous_price) / previous_price) * 100 if previous_price != 0 else 0
-                                    col2.metric("현재가", f"{current_price:,.2f}", f"{daily_change_percent:,.2f}%")
-                                else:
-                                    col2.metric("현재가", f"{current_price:,.2f}")
-                    else:
-                        st.write("- (추천 종목 없음)")
-            elif asset == "CMA/파킹통장 (현금)":
-                st.markdown("---")
-                st.markdown("[CMA/파킹 통장 금리 비교](https://new-m.pay.naver.com/savings/list/cma)")
-                st.markdown("---")
-            elif asset == "적금":
-                st.markdown("---")
-                st.markdown("[예적금 금리 비교](https://new-m.pay.naver.com/savings/list/saving)")
-                st.markdown("---")
-            else:
-                recommended_tickers_info = asset_recommendations[asset]['종목']
-                if recommended_tickers_info:
-                    st.write(f"**추천 종목/ETF:**")
-                    for name, ticker in recommended_tickers_info.items():
-                        if ticker != "N/A":
-                            col1, col2 = st.columns([0.5, 0.5])
-                            col1.write(f"- **{name}**")
-                            stock_data_series = get_stock_data(ticker, period="2d")
-
-                            if not stock_data_series.empty and len(stock_data_series) >= 1 and pd.api.types.is_numeric_dtype(stock_data_series):
-                                current_price = stock_data_series.iloc[-1]
-                                if len(stock_data_series) > 1 and pd.api.types.is_numeric_dtype(stock_data_series.iloc[-2]):
-                                    previous_price = stock_data_series.iloc[-2]
-                                    daily_change_percent = ((current_price - previous_price) / previous_price) * 100 if previous_price != 0 else 0
-                                    col2.metric("현재가", f"{current_price:,.2f}", f"{daily_change_percent:,.2f}%")
-                                else:
-                                    col2.metric("현재가", f"{current_price:,.2f}")
+                if asset == "채권":
+                    for bond_type, bond_info in asset_recommendations[asset]['세부종목'].items():
+                        st.markdown(f"##### {bond_type}")
+                        st.write(f"**설명:** {bond_info['설명']}")
+                        st.write(f"**추천 종목/ETF:**")
+                        if bond_info['종목']:
+                            for name, ticker in bond_info['종목'].items():
+                                col1, col2 = st.columns([0.5, 0.5])
+                                col1.write(f"- **{name}**")
+                                stock_data_series = get_stock_data(ticker, period="2d")
+                                if not stock_data_series.empty and len(stock_data_series) >= 1 and pd.api.types.is_numeric_dtype(stock_data_series):
+                                    current_price = stock_data_series.iloc[-1]
+                                    if len(stock_data_series) > 1 and pd.api.types.is_numeric_dtype(stock_data_series.iloc[-2]):
+                                        previous_price = stock_data_series.iloc[-2]
+                                        daily_change_percent = ((current_price - previous_price) / previous_price) * 100 if previous_price != 0 else 0
+                                        col2.metric("현재가", f"{current_price:,.2f}", f"{daily_change_percent:,.2f}%")
+                                    else:
+                                        col2.metric("현재가", f"{current_price:,.2f}")
                         else:
-                            st.write(f"- {name}")
-            st.markdown("---")
+                            st.write("- (추천 종목 없음)")
+                elif asset == "CMA/파킹통장 (현금)":
+                    st.markdown("---")
+                    st.markdown("[CMA/파킹 통장 금리 비교](https://new-m.pay.naver.com/savings/list/cma)")
+                    st.markdown("---")
+                elif asset == "적금":
+                    st.markdown("---")
+                    st.markdown("[예적금 금리 비교](https://new-m.pay.naver.com/savings/list/saving)")
+                    st.markdown("---")
+                else:
+                    recommended_tickers_info = asset_recommendations[asset]['종목']
+                    if recommended_tickers_info:
+                        st.write(f"**추천 종목/ETF:**")
+                        for name, ticker in recommended_tickers_info.items():
+                            if ticker != "N/A":
+                                col1, col2 = st.columns([0.5, 0.5])
+                                col1.write(f"- **{name}**")
+                                stock_data_series = get_stock_data(ticker, period="2d")
+
+                                if not stock_data_series.empty and len(stock_data_series) >= 1 and pd.api.types.is_numeric_dtype(stock_data_series):
+                                    current_price = stock_data_series.iloc[-1]
+                                    if len(stock_data_series) > 1 and pd.api.types.is_numeric_dtype(stock_data_series.iloc[-2]):
+                                        previous_price = stock_data_series.iloc[-2]
+                                        daily_change_percent = ((current_price - previous_price) / previous_price) * 100 if previous_price != 0 else 0
+                                        col2.metric("현재가", f"{current_price:,.2f}", f"{daily_change_percent:,.2f}%")
+                                    else:
+                                        col2.metric("현재가", f"{current_price:,.2f}")
+                            else:
+                                st.write(f"- {name}")
+                st.markdown("---")
+    else:
+        st.info("포트폴리오에 포함할 자산을 먼저 선택해주세요.")
+
 
 elif selected_section == "💸 월별 투자 가이드":
     # 필요한 session_state 값들을 가져오거나 경고
     if 'risk_tolerance' not in st.session_state:
-        st.warning("먼저 '나의 투자 성향 선택' 섹션에서 투자 성향을 선택해주세요.")
+        st.warning("먼저 '시작하기 & 포트폴리오 설정' 섹션에서 투자 성향을 선택해주세요.")
         st.stop()
     if 'selected_assets' not in st.session_state:
-        st.warning("먼저 '포트폴리오 자산 선택' 섹션에서 자산을 선택해주세요.")
+        st.warning("먼저 '시작하기 & 포트폴리오 설정' 섹션에서 자산을 선택해주세요.")
         st.stop()
     if 'portfolio_allocations' not in st.session_state:
-        st.warning("포트폴리오 비율을 계산하려면 '포트폴리오 자산 선택' 섹션에서 자산을 선택해주세요.")
+        st.warning("포트폴리오 비율을 계산하려면 '시작하기 & 포트폴리오 설정' 섹션에서 자산을 선택해주세요.")
         st.stop()
 
     risk_tolerance = st.session_state['risk_tolerance']
@@ -334,6 +322,7 @@ elif selected_section == "💸 월별 투자 가이드":
     selected_bond_types = {} # 채권 유형
     selected_etf_items = {} # ETF 종목과 티커
 
+    # 월별 가이드 섹션에서도 asset_recommendations 정의 (재사용을 위해)
     asset_recommendations_for_monthly_guide = {
         "금": {
             "종목": {
@@ -416,7 +405,7 @@ elif selected_section == "💸 월별 투자 가이드":
                 min_value=1,
                 max_value=max_bond_choices,
                 value=min(max_bond_choices, 2),
-                key=f"num_choices_{asset_type}_bond_type_monthly" # 고유 key
+                key=f"num_choices_{asset_type}_bond_type_monthly"
             )
 
             chosen_bond_types_names = []
@@ -428,7 +417,7 @@ elif selected_section == "💸 월별 투자 가이드":
                 selected_bond_type_name = st.selectbox(
                     f"{asset_type} 유형 {i+1} 선택",
                     ["선택하세요"] + available_bond_options,
-                    key=f"{asset_type}_type_{i}_monthly" # 고유 key
+                    key=f"{asset_type}_type_{i}_monthly"
                 )
                 if selected_bond_type_name != "선택하세요":
                     chosen_bond_types_names.append(selected_bond_type_name)
@@ -453,7 +442,7 @@ elif selected_section == "💸 월별 투자 가이드":
                 min_value=1,
                 max_value=max_choices,
                 value=min(max_choices, 2),
-                key=f"num_choices_{asset_type}_monthly" # 고유 key
+                key=f"num_choices_{asset_type}_monthly"
             )
 
             chosen_etf_names = []
@@ -469,7 +458,7 @@ elif selected_section == "💸 월별 투자 가이드":
                 selected_name = st.selectbox(
                     f"{asset_type} 종목 {i+1} 선택",
                     ["선택하세요"] + available_options,
-                    key=f"{asset_type}_item_{i}_monthly" # 고유 key
+                    key=f"{asset_type}_item_{i}_monthly"
                 )
                 if selected_name != "선택하세요":
                     chosen_etf_names.append(selected_name)
@@ -496,7 +485,7 @@ elif selected_section == "💸 월별 투자 가이드":
                 min_value=1,
                 max_value=max_choices,
                 value=min(max_choices, 1),
-                key=f"num_choices_{asset_type}_monthly" # 고유 key
+                key=f"num_choices_{asset_type}_monthly"
             )
 
             chosen_names_for_asset = []
@@ -512,7 +501,7 @@ elif selected_section == "💸 월별 투자 가이드":
                 selected_name = st.selectbox(
                     f"{asset_type} 종목 {i+1} 선택",
                     ["선택하세요"] + available_options,
-                    key=f"{asset_type}_item_{i}_monthly" # 고유 key
+                    key=f"{asset_type}_item_{i}_monthly"
                 )
                 if selected_name != "선택하세요":
                     chosen_names_for_asset.append(selected_name)
