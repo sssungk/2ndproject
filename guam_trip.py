@@ -203,7 +203,7 @@ for time, details in schedule.items():
     emoji = CLOCK_EMOJIS.get(time, "⏰") # Get colored emoji
     st.markdown(f"### {emoji} {time}\n- {details['activity']}")
     if details['image']:
-        st.image(details['image'], caption=details['activity'], use_column_width=True)
+        st.image(details['image'], caption=details['activity'], use_container_width=True) # use_container_width로 변경
     st.markdown("---") # Add a separator
 
 # 지도 표시 (해당 일자의 장소들)
