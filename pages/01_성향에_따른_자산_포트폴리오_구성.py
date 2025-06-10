@@ -33,258 +33,296 @@ def get_stock_data(ticker, period="1y"):
         return pd.Series(dtype='float64')
 
 # --- 앱 본문 시작 ---
-
-# '투자위험고지'는 자신의 투자 성향을 선택하는 것보다 위에 위치
-st.markdown("---")
-st.markdown("### ⚠️ 중요: 투자 위험 고지")
-st.warning(
-    "**본 앱에서 제공하는 정보는 투자 참고용이며, 어떠한 투자 권유도 아닙니다.**\n"
-    "투자는 원금 손실의 위험을 내포하고 있으며, 과거 수익률이 미래 수익률을 보장하지 않습니다.\n"
-    "제공된 정보는 시장 상황, 데이터 출처, 계산 로직에 따라 실제와 다를 수 있습니다.\n"
-    "**투자 결정은 반드시 본인의 판단과 책임 하에 이루어져야 합니다.**\n"
-    "전문가와 상담하여 신중하게 투자하시기를 강력히 권고합니다."
-)
-
 st.title("💰 AI 투자 도우미: 맞춤형 자산 포트폴리오 구성")
 
-# 1. 투자 성향 슬라이더
-st.markdown("### 📊 나의 투자 성향 선택")
-st.markdown("0은 **가장 안정적인 투자**를 선호하며, 100은 **가장 공격적인 투자**를 선호합니다.")
-risk_tolerance = st.slider("나의 투자 성향", 0, 100, 50)
-st.info(f"현재 선택하신 투자 성향은 **{risk_tolerance}** 입니다.")
+# --- 사이드바 섹션 선택 ---
+st.sidebar.header("메뉴")
+menu_options = [
+    "시작하기 / 투자 위험 고지",
+    "📊 나의 투자 성향 선택",
+    "📝 포트폴리오 자산 선택",
+    "📈 추천 종목 및 ETF",
+    "💸 월별 투자 가이드"
+]
+selected_section = st.sidebar.radio("원하는 섹션으로 이동", menu_options)
 
-# 6. 포트폴리오 구성 자산 선택
-st.markdown("---")
-st.markdown("### 📝 포트폴리오에 포함할 자산 선택")
-st.markdown("자신이 관심 있는 자산군을 선택해주세요. 선택하신 성향에 맞춰 자산 비중을 추천해 드립니다.")
-selected_assets = st.multiselect(
-    "선택 가능한 자산",
-    ["금", "채권", "CMA/파킹통장 (현금)", "적금", "ETF", "주식", "원자재"],
-    default=["금", "채권", "CMA/파킹통장 (현금)", "ETF"] # 초기 선택 값
-)
+st.sidebar.markdown("---")
+st.sidebar.markdown("© 2025 AI 투자 도우미")
 
-if not selected_assets:
-    st.warning("포트폴리오에 포함할 자산을 1개 이상 선택해주세요.")
-else:
-    # 2. 포트폴리오 구성 로직 (예시)
-    portfolio = {}
+# --- 조건부 렌더링 시작 ---
 
-    # 기본 비율 설정 (리스크 성향 50 기준)
-    base_allocations = {
-        "CMA/파킹통장 (현금)": 15,
-        "채권": 30,
-        "금": 10,
-        "적금": 15,
-        "ETF": 20,
-        "주식": 5,
-        "원자재": 5
-    }
+if selected_section == "시작하기 / 투자 위험 고지":
+    st.markdown("---")
+    st.markdown("### ⚠️ 중요: 투자 위험 고지")
+    st.warning(
+        "**본 앱에서 제공하는 정보는 투자 참고용이며, 어떠한 투자 권유도 아닙니다.**\n"
+        "투자는 원금 손실의 위험을 내포하고 있으며, 과거 수익률이 미래 수익률을 보장하지 않습니다.\n"
+        "제공된 정보는 시장 상황, 데이터 출처, 계산 로직에 따라 실제와 다를 수 있습니다.\n"
+        "**투자 결정은 반드시 본인의 판단과 책임 하에 이루어져야 합니다.**\n"
+        "전문가와 상담하여 신중하게 투자하시기를 강력히 권고합니다."
+    )
+    st.info("시작하려면 왼쪽 사이드바에서 메뉴를 선택해주세요.")
 
-    # 리스크 성향에 따른 비율 조정 (간단한 선형 모델)
-    for asset in selected_assets:
-        if asset in base_allocations:
-            base_percent = base_allocations[asset]
-            # 안정 자산 (현금, 채권, 적금)은 리스크 성향이 낮을수록 비중 증가
-            if asset in ["CMA/파킹통장 (현금)", "채권", " 적금"]:
-                portfolio[asset] = base_percent + (50 - risk_tolerance) * 0.4
-            # 공격 자산 (주식, ETF, 원자재)은 리스크 성향이 높을수록 비중 증가
-            elif asset in ["ETF", "주식", "원자재"]:
-                portfolio[asset] = base_percent + (risk_tolerance - 50) * 0.4
-            # 금은 비교적 중립적으로 유지 (변동성 자산으로 분류 시 공격 성향에 추가 가능)
-            else: # 금
-                portfolio[asset] = base_percent
+elif selected_section == "📊 나의 투자 성향 선택":
+    st.markdown("---")
+    st.markdown("### 📊 나의 투자 성향 선택")
+    st.markdown("0은 **가장 안정적인 투자**를 선호하며, 100은 **가장 공격적인 투자**를 선호합니다.")
+    risk_tolerance = st.slider("나의 투자 성향", 0, 100, 50, key="risk_tolerance_main")
+    st.info(f"현재 선택하신 투자 성향은 **{risk_tolerance}** 입니다.")
 
-    # 선택되지 않은 자산은 0으로 설정
-    all_possible_assets = ["금", "채권", "CMA/파킹통장 (현금)", "적금", "ETF", "주식", "원자재"]
-    for asset_name in all_possible_assets:
-        if asset_name not in selected_assets:
-            portfolio[asset_name] = 0
-        elif asset_name not in portfolio: # 선택했지만 base_allocations에 없는 경우 (안전장치)
-            portfolio[asset_name] = 0
+    # 이 섹션에서 설정된 risk_tolerance 값을 다른 섹션에서도 사용할 수 있도록 session_state에 저장
+    st.session_state['risk_tolerance'] = risk_tolerance
 
-    # 비율 정규화 (총합 100%)
-    total_percentage = sum(portfolio.values())
-    if total_percentage > 0:
-        for asset, percentage in portfolio.items():
-            if percentage < 0: # 음수 비율 방지
-                portfolio[asset] = 0
-            portfolio[asset] = (portfolio[asset] / total_percentage) * 100
-    else:
-        st.warning("선택된 자산으로 포트폴리오를 구성할 수 없습니다. 다른 자산을 선택해보세요.")
-        portfolio = {asset: 0 for asset in selected_assets} # 빈 포트폴리오로 설정하여 오류 방지
+elif selected_section == "📝 포트폴리오 자산 선택":
+    # risk_tolerance가 설정되어 있지 않으면 초기값으로 설정하거나 경고
+    if 'risk_tolerance' not in st.session_state:
+        st.session_state['risk_tolerance'] = 50 # 기본값 설정
+        st.warning("투자 성향이 선택되지 않았습니다. 기본값인 '50'으로 설정됩니다. '나의 투자 성향 선택' 섹션에서 먼저 선택해주세요.")
+    
+    risk_tolerance = st.session_state['risk_tolerance']
 
     st.markdown("---")
-    st.markdown("### 📊 추천 자산 포트폴리오 비율")
-    st.write("선택하신 투자 성향과 자산 선택에 따라 추천되는 포트폴리오 구성 비율입니다.")
+    st.markdown("### 📝 포트폴리오에 포함할 자산 선택")
+    st.markdown("자신이 관심 있는 자산군을 선택해주세요. 선택하신 성향에 맞춰 자산 비중을 추천해 드립니다.")
+    selected_assets = st.multiselect(
+        "선택 가능한 자산",
+        ["금", "채권", "CMA/파킹통장 (현금)", "적금", "ETF", "주식", "원자재"],
+        default=["금", "채권", "CMA/파킹통장 (현금)", "ETF"],
+        key="selected_assets_main"
+    )
+    st.session_state['selected_assets'] = selected_assets
 
-    if portfolio and sum(portfolio.values()) > 0:
-        df_portfolio = pd.DataFrame(portfolio.items(), columns=['자산', '비율'])
-        # 0%인 항목 제거하여 그래프에 표시 안함
-        df_portfolio = df_portfolio[df_portfolio['비율'] > 0.01] # 0.01% 미만은 표시 안함
-
-        if not df_portfolio.empty:
-            fig = px.pie(df_portfolio, values='비율', names='자산',
-                         title='<b>나의 맞춤형 자산 포트폴리오 구성</b>',
-                         hole=0.4 # 도넛 차트
-            )
-            fig.update_traces(textposition='inside', textinfo='percent+label')
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.warning("선택된 자산 비중이 너무 작아 차트를 그릴 수 없습니다. 다른 자산을 선택해주세요.")
-
-        # 4. 각 자산별 추천 종목 또는 ETF
-        st.markdown("---")
-        st.markdown("### 📈 추천 종목 및 ETF")
-        st.markdown("선택하신 자산별로 추천하는 종목 또는 ETF입니다. 현재 가격은 `yfinance`를 통해 조회됩니다. 실제 투자는 신중하게 결정해주세요.")
-
-        asset_recommendations = {
-            "금": {
-                "종목": {
-                    "SPDR Gold Shares (GLD)": "GLD", # 미국 금 ETF
-                    "iShares Gold Trust (IAU)": "IAU", # 미국 금 ETF
-                    "KODEX 골드선물(H)": "132030.KS", # 국내 금 ETF
-                    "KRX 금 시장": "N/A" # KRX 금 시장은 티커 없음
-                },
-                "설명": "금은 인플레이션 헤지 및 안전자산으로 선호됩니다. 달러 가치와 반대로 움직이는 경향이 있습니다. **KRX 금 시장**을 통해 실물 금에 투자하거나, **금 ETF**를 통해 간접 투자할 수 있습니다."
-            },
-            "채권": {
-                "설명": "채권은 주식에 비해 안정적인 수익을 제공하며, 경기 침체 시 가치가 상승할 수 있습니다. 금리 변동에 민감합니다. 투자 성향에 따라 다양한 채권을 고려할 수 있습니다. **국고채**는 정부가 발행하여 안정성이 높고, **회사채**는 기업이 발행하여 수익률이 높지만 신용 위험이 있습니다. 만기에 따라 **단기채**, **중장기채**, **장기채**로 구분됩니다.",
-                "세부종목": {
-                    "단기채 (안정적, 낮은 수익률)": {
-                        "설명": "만기가 짧아 금리 변동에 덜 민감하고 안정적입니다. 단기 자금 운용에 적합합니다.",
-                        "종목": {"KOSEF 단기자금": "123530.KS", "KBSTAR 국고채30년액티브": "306200.KS"} # 예시로 국내 단기채 ETF 추가
-                    },
-                    "중장기채 (중간 위험, 중간 수익률)": {
-                        "설명": "금리 변동에 어느 정도 영향을 받지만, 장기채보다는 변동성이 작습니다.",
-                        "종목": {"KODEX 국고채3년": "114260.KS", "TIGER 국채10년": "148070.KS"}
-                    },
-                    "장기채 (공격적, 높은 변동성)": {
-                        "설명": "만기가 길어 금리 변동에 매우 민감하여 변동성이 크지만, 금리 하락 시 높은 수익률을 기대할 수 있습니다. 포트폴리오 분산에 활용됩니다.",
-                        "종목": {"iShares 20+ Year Treasury Bond ETF (TLT)": "TLT", "KODEX 미국채10년선물(H)": "308620.KS"}
-                    }
-                }
-            },
-            "CMA/파킹통장 (현금)": {
-                "종목": {}, # 추천 종목 대신 링크 제공
-                "설명": "단기 여유자금을 보관하며, 비교적 높은 금리의 이자를 매일 또는 매주 받을 수 있는 상품입니다. 비상 자금으로 활용하기 좋습니다. **가장 높은 금리를 비교하여 선택하는 것이 중요합니다.**"
-            },
-            "적금": {
-                "종목": {}, # 추천 종목 대신 링크 제공
-                "설명": "정해진 기간 동안 꾸준히 저축하며, 확정된 금리 수익을 얻을 수 있는 안전한 상품입니다. 목돈 마련에 유용합니다. **은행별 최고 금리를 비교하여 선택하는 것이 중요합니다.**"
-            },
-            "ETF": {
-                "종목": {
-                    "KODEX 미국S&P500TR": "379810.KS", # S&P 500
-                    "TIGER 미국나스닥100": "133690.KS", # 나스닥 100
-                    "KODEX 미국나스닥100TR": "395380.KS", # 나스닥 100
-                    "SOL 미국배당다우존스": "446860.KS", # SCHD와 유사한 국내 ETF
-                    "ACE 미국배당다우존스": "449170.KS" # SCHD와 유사한 국내 ETF
-                },
-                "특성": { # ETF 종목별 특성 추가 (안정형/성장형)
-                    "KODEX 미국S&P500TR": "성장형",
-                    "TIGER 미국나스닥100": "성장형",
-                    "KODEX 미국나스닥100TR": "성장형",
-                    "SOL 미국배당다우존스": "안정형",
-                    "ACE 미국배당다우존스": "안정형"
-                },
-                "설명": "다양한 자산에 분산 투자하는 펀드를 주식처럼 거래할 수 있습니다. 특정 지수, 산업, 국가에 투자하여 분산 효과를 누릴 수 있습니다. **미국 주요 지수(S&P 500, 나스닥 100) 추종 ETF와 배당 성장 ETF(SCHD 유사)는 장기 투자에 적합합니다.**"
-            },
-            "주식": {
-                "종목": {"삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "네이버": "035420.KS", "카카오": "035720.KS"},
-                "설명": "개별 기업의 성장에 직접 투자하여 높은 수익을 추구할 수 있으나, 변동성이 매우 큽니다. 기업 분석과 시장 상황에 대한 이해가 필수적입니다."
-            },
-            "원자재": {
-                "종목": {
-                    "United States Oil Fund (USO)": "USO", # 원유 ETF
-                    "Invesco DB Commodity Index Index Tracking Fund (DBC)": "DBC", # 종합 원자재 ETF
-                    "Aberdeen Standard Physical Platinum Shares ETF (PPLT)": "PPLT", # 백금 ETF
-                    "KODEX 구리선물(H)": "226340.KS" # 국내 구리 ETF
-                },
-                "설명": "원유, 구리, 곡물, 귀금속 등 실물 자산에 투자합니다. 글로벌 경제 상황이나 공급망 이슈에 따라 가격 변동성이 큽니다. 포트폴리오의 분산 효과를 높이는 데 활용될 수 있습니다."
-            }
+    if not selected_assets:
+        st.warning("포트폴리오에 포함할 자산을 1개 이상 선택해주세요.")
+    else:
+        portfolio = {}
+        base_allocations = {
+            "CMA/파킹통장 (현금)": 15,
+            "채권": 30,
+            "금": 10,
+            "적금": 15,
+            "ETF": 20,
+            "주식": 5,
+            "원자재": 5
         }
 
-        # 각 자산별 추천 종목 상세 표시 및 ISA 팁 위치 조정
         for asset in selected_assets:
-            if asset in asset_recommendations:
-                st.markdown(f"#### ➡️ {asset}")
-                st.write(f"**설명:** {asset_recommendations[asset]['설명']}")
+            if asset in base_allocations:
+                base_percent = base_allocations[asset]
+                if asset in ["CMA/파킹통장 (현금)", "채권", "적금"]:
+                    portfolio[asset] = base_percent + (50 - risk_tolerance) * 0.4
+                elif asset in ["ETF", "주식", "원자재"]:
+                    portfolio[asset] = base_percent + (risk_tolerance - 50) * 0.4
+                else: # 금
+                    portfolio[asset] = base_percent
 
-                # '투자 팁: ISA 계좌 활용'을 ETF 섹션 바로 아래로 이동
-                if asset == "ETF":
-                    st.markdown("### 💡 투자 팁: ISA 계좌 활용")
-                    st.info(
-                        "주식, ETF 등 일부 금융 상품을 개인 계좌에서 구매하는 것보다 **ISA (Individual Savings Account) 계좌**를 통해 구매하는 것을 고려해보세요.\n"
-                        "ISA 계좌는 일정 한도 내에서 **비과세 또는 저율 분리과세 혜택**을 받을 수 있어 절세에 유리합니다.\n"
-                        "특히, **ETF**와 같은 상품은 ISA 계좌에서 매매차익에 대한 세금 혜택을 받을 수 있으니, 자세한 내용은 증권사에 문의하거나 관련 정보를 찾아보시길 권합니다.\n"
-                        "**연금저축펀드**와 **IRP** 계좌도 노후 대비 및 세액공제 혜택이 있으니 함께 알아보시면 좋습니다."
-                    )
-                    st.markdown("---") # 팁과 종목 사이에 구분선 추가
+        all_possible_assets = ["금", "채권", "CMA/파킹통장 (현금)", "적금", "ETF", "주식", "원자재"]
+        for asset_name in all_possible_assets:
+            if asset_name not in selected_assets:
+                portfolio[asset_name] = 0
+            elif asset_name not in portfolio:
+                portfolio[asset_name] = 0
 
-                # 채권의 경우 세분화된 종목을 표시 (여기서는 현재가 조회를 위해 period="2d" 유지)
-                if asset == "채권":
-                    for bond_type, bond_info in asset_recommendations[asset]['세부종목'].items():
-                        st.markdown(f"##### {bond_type}")
-                        st.write(f"**설명:** {bond_info['설명']}")
-                        st.write(f"**추천 종목/ETF:**")
-                        if bond_info['종목']:
-                            for name, ticker in bond_info['종목'].items():
-                                col1, col2 = st.columns([0.5, 0.5])
-                                col1.write(f"- **{name}**")
-                                stock_data_series = get_stock_data(ticker, period="2d") # 여기서 현재가 조회는 유지
-                                if not stock_data_series.empty and len(stock_data_series) >= 1 and pd.api.types.is_numeric_dtype(stock_data_series):
-                                    current_price = stock_data_series.iloc[-1]
-                                    if len(stock_data_series) > 1 and pd.api.types.is_numeric_dtype(stock_data_series.iloc[-2]):
-                                        previous_price = stock_data_series.iloc[-2]
-                                        daily_change_percent = ((current_price - previous_price) / previous_price) * 100 if previous_price != 0 else 0
-                                        col2.metric("현재가", f"{current_price:,.2f}", f"{daily_change_percent:,.2f}%")
-                                    else:
-                                        col2.metric("현재가", f"{current_price:,.2f}")
-                        else:
-                            st.write("- (추천 종목 없음)")
-                # CMA/파킹통장 또는 적금은 링크로 대체
-                elif asset == "CMA/파킹통장 (현금)":
-                    st.markdown("---")
-                    st.markdown("[CMA/파킹 통장 금리 비교](https://new-m.pay.naver.com/savings/list/cma)")
-                    st.markdown("---")
-                elif asset == "적금":
-                    st.markdown("---")
-                    st.markdown("[예적금 금리 비교](https://new-m.pay.naver.com/savings/list/saving)")
-                    st.markdown("---")
-                # 그 외 자산군은 기존 방식대로 종목 표시
-                else:
-                    recommended_tickers_info = asset_recommendations[asset]['종목']
-                    if recommended_tickers_info:
-                        st.write(f"**추천 종목/ETF:**")
-                        for name, ticker in recommended_tickers_info.items():
-                            if ticker != "N/A":
-                                col1, col2 = st.columns([0.5, 0.5])
-                                col1.write(f"- **{name}**")
-                                stock_data_series = get_stock_data(ticker, period="2d") # 여기서 현재가 조회는 유지
+        total_percentage = sum(portfolio.values())
+        if total_percentage > 0:
+            for asset, percentage in portfolio.items():
+                if percentage < 0:
+                    portfolio[asset] = 0
+                portfolio[asset] = (portfolio[asset] / total_percentage) * 100
+        else:
+            st.warning("선택된 자산으로 포트폴리오를 구성할 수 없습니다. 다른 자산을 선택해보세요.")
+            portfolio = {asset: 0 for asset in selected_assets}
 
-                                if not stock_data_series.empty and len(stock_data_series) >= 1 and pd.api.types.is_numeric_dtype(stock_data_series):
-                                    current_price = stock_data_series.iloc[-1]
-                                    if len(stock_data_series) > 1 and pd.api.types.is_numeric_dtype(stock_data_series.iloc[-2]):
-                                        previous_price = stock_data_series.iloc[-2]
-                                        daily_change_percent = ((current_price - previous_price) / previous_price) * 100 if previous_price != 0 else 0
-                                        col2.metric("현재가", f"{current_price:,.2f}", f"{daily_change_percent:,.2f}%")
-                                    else:
-                                        col2.metric("현재가", f"{current_price:,.2f}")
-                            else:
-                                st.write(f"- {name}")
+        st.session_state['portfolio_allocations'] = portfolio # 계산된 포트폴리오 저장
+
+        st.markdown("---")
+        st.markdown("### 📊 추천 자산 포트폴리오 비율")
+        st.write("선택하신 투자 성향과 자산 선택에 따라 추천되는 포트폴리오 구성 비율입니다.")
+
+        if portfolio and sum(portfolio.values()) > 0:
+            df_portfolio = pd.DataFrame(portfolio.items(), columns=['자산', '비율'])
+            df_portfolio = df_portfolio[df_portfolio['비율'] > 0.01]
+
+            if not df_portfolio.empty:
+                fig = px.pie(df_portfolio, values='비율', names='자산',
+                             title='<b>나의 맞춤형 자산 포트폴리오 구성</b>',
+                             hole=0.4
+                )
+                fig.update_traces(textposition='inside', textinfo='percent+label')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.warning("선택된 자산 비중이 너무 작아 차트를 그릴 수 없습니다. 다른 자산을 선택해주세요.")
+
+elif selected_section == "📈 추천 종목 및 ETF":
+    # 필요한 session_state 값들을 가져오거나 기본값 설정
+    if 'selected_assets' not in st.session_state:
+        st.warning("먼저 '포트폴리오 자산 선택' 섹션에서 자산을 선택해주세요.")
+        st.stop()
+    selected_assets = st.session_state['selected_assets']
+
+    st.markdown("---")
+    st.markdown("### 📈 추천 종목 및 ETF")
+    st.markdown("선택하신 자산별로 추천하는 종목 또는 ETF입니다. 현재 가격은 `yfinance`를 통해 조회됩니다. 실제 투자는 신중하게 결정해주세요.")
+
+    asset_recommendations = {
+        "금": {
+            "종목": {
+                "SPDR Gold Shares (GLD)": "GLD",
+                "iShares Gold Trust (IAU)": "IAU",
+                "KODEX 골드선물(H)": "132030.KS",
+                "KRX 금 시장": "N/A"
+            },
+            "설명": "금은 인플레이션 헤지 및 안전자산으로 선호됩니다. 달러 가치와 반대로 움직이는 경향이 있습니다. **KRX 금 시장**을 통해 실물 금에 투자하거나, **금 ETF**를 통해 간접 투자할 수 있습니다."
+        },
+        "채권": {
+            "설명": "채권은 주식에 비해 안정적인 수익을 제공하며, 경기 침체 시 가치가 상승할 수 있습니다. 금리 변동에 민감합니다. 투자 성향에 따라 다양한 채권을 고려할 수 있습니다. **국고채**는 정부가 발행하여 안정성이 높고, **회사채**는 기업이 발행하여 수익률이 높지만 신용 위험이 있습니다. 만기에 따라 **단기채**, **중장기채**, **장기채**로 구분됩니다.",
+            "세부종목": {
+                "단기채 (안정적, 낮은 수익률)": {
+                    "설명": "만기가 짧아 금리 변동에 덜 민감하고 안정적입니다. 단기 자금 운용에 적합합니다.",
+                    "종목": {"KOSEF 단기자금": "123530.KS", "KBSTAR 국고채30년액티브": "306200.KS"}
+                },
+                "중장기채 (중간 위험, 중간 수익률)": {
+                    "설명": "금리 변동에 어느 정도 영향을 받지만, 장기채보다는 변동성이 작습니다.",
+                    "종목": {"KODEX 국고채3년": "114260.KS", "TIGER 국채10년": "148070.KS"}
+                },
+                "장기채 (공격적, 높은 변동성)": {
+                    "설명": "만기가 길어 금리 변동에 매우 민감하여 변동성이 크지만, 금리 하락 시 높은 수익률을 기대할 수 있습니다. 포트폴리오 분산에 활용됩니다.",
+                    "종목": {"iShares 20+ Year Treasury Bond ETF (TLT)": "TLT", "KODEX 미국채10년선물(H)": "308620.KS"}
+                }
+            }
+        },
+        "CMA/파킹통장 (현금)": {
+            "종목": {},
+            "설명": "단기 여유자금을 보관하며, 비교적 높은 금리의 이자를 매일 또는 매주 받을 수 있는 상품입니다. 비상 자금으로 활용하기 좋습니다. **가장 높은 금리를 비교하여 선택하는 것이 중요합니다.**"
+        },
+        "적금": {
+            "종목": {},
+            "설명": "정해진 기간 동안 꾸준히 저축하며, 확정된 금리 수익을 얻을 수 있는 안전한 상품입니다. 목돈 마련에 유용합니다. **은행별 최고 금리를 비교하여 선택하는 것이 중요합니다.**"
+        },
+        "ETF": {
+            "종목": {
+                "KODEX 미국S&P500TR": "379810.KS",
+                "TIGER 미국나스닥100": "133690.KS",
+                "KODEX 미국나스닥100TR": "395380.KS",
+                "SOL 미국배당다우존스": "446860.KS",
+                "ACE 미국배당다우존스": "449170.KS"
+            },
+            "특성": {
+                "KODEX 미국S&P500TR": "성장형",
+                "TIGER 미국나스닥100": "성장형",
+                "KODEX 미국나스닥100TR": "성장형",
+                "SOL 미국배당다우존스": "안정형",
+                "ACE 미국배당다우존스": "안정형"
+            },
+            "설명": "다양한 자산에 분산 투자하는 펀드를 주식처럼 거래할 수 있습니다. 특정 지수, 산업, 국가에 투자하여 분산 효과를 누릴 수 있습니다. **미국 주요 지수(S&P 500, 나스닥 100) 추종 ETF와 배당 성장 ETF(SCHD 유사)는 장기 투자에 적합합니다.**"
+        },
+        "주식": {
+            "종목": {"삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "네이버": "035420.KS", "카카오": "035720.KS"},
+            "설명": "개별 기업의 성장에 직접 투자하여 높은 수익을 추구할 수 있으나, 변동성이 매우 큽니다. 기업 분석과 시장 상황에 대한 이해가 필수적입니다."
+        },
+        "원자재": {
+            "종목": {
+                "United States Oil Fund (USO)": "USO",
+                "Invesco DB Commodity Index Tracking Fund (DBC)": "DBC",
+                "Aberdeen Standard Physical Platinum Shares ETF (PPLT)": "PPLT",
+                "KODEX 구리선물(H)": "226340.KS"
+            },
+            "설명": "원유, 구리, 곡물, 귀금속 등 실물 자산에 투자합니다. 글로벌 경제 상황이나 공급망 이슈에 따라 가격 변동성이 큽니다. 포트폴리오의 분산 효과를 높이는 데 활용될 수 있습니다."
+        }
+    }
+
+    for asset in selected_assets:
+        if asset in asset_recommendations:
+            st.markdown(f"#### ➡️ {asset}")
+            st.write(f"**설명:** {asset_recommendations[asset]['설명']}")
+
+            if asset == "ETF":
+                st.markdown("### 💡 투자 팁: ISA 계좌 활용")
+                st.info(
+                    "주식, ETF 등 일부 금융 상품을 개인 계좌에서 구매하는 것보다 **ISA (Individual Savings Account) 계좌**를 통해 구매하는 것을 고려해보세요.\n"
+                    "ISA 계좌는 일정 한도 내에서 **비과세 또는 저율 분리과세 혜택**을 받을 수 있어 절세에 유리합니다.\n"
+                    "특히, **ETF**와 같은 상품은 ISA 계좌에서 매매차익에 대한 세금 혜택을 받을 수 있으니, 자세한 내용은 증권사에 문의하거나 관련 정보를 찾아보시길 권합니다.\n"
+                    "**연금저축펀드**와 **IRP** 계좌도 노후 대비 및 세액공제 혜택이 있으니 함께 알아보시면 좋습니다."
+                )
                 st.markdown("---")
 
-    # --- 월별 투자 금액 기반 포트폴리오 구성 ---
+            if asset == "채권":
+                for bond_type, bond_info in asset_recommendations[asset]['세부종목'].items():
+                    st.markdown(f"##### {bond_type}")
+                    st.write(f"**설명:** {bond_info['설명']}")
+                    st.write(f"**추천 종목/ETF:**")
+                    if bond_info['종목']:
+                        for name, ticker in bond_info['종목'].items():
+                            col1, col2 = st.columns([0.5, 0.5])
+                            col1.write(f"- **{name}**")
+                            stock_data_series = get_stock_data(ticker, period="2d")
+                            if not stock_data_series.empty and len(stock_data_series) >= 1 and pd.api.types.is_numeric_dtype(stock_data_series):
+                                current_price = stock_data_series.iloc[-1]
+                                if len(stock_data_series) > 1 and pd.api.types.is_numeric_dtype(stock_data_series.iloc[-2]):
+                                    previous_price = stock_data_series.iloc[-2]
+                                    daily_change_percent = ((current_price - previous_price) / previous_price) * 100 if previous_price != 0 else 0
+                                    col2.metric("현재가", f"{current_price:,.2f}", f"{daily_change_percent:,.2f}%")
+                                else:
+                                    col2.metric("현재가", f"{current_price:,.2f}")
+                    else:
+                        st.write("- (추천 종목 없음)")
+            elif asset == "CMA/파킹통장 (현금)":
+                st.markdown("---")
+                st.markdown("[CMA/파킹 통장 금리 비교](https://new-m.pay.naver.com/savings/list/cma)")
+                st.markdown("---")
+            elif asset == "적금":
+                st.markdown("---")
+                st.markdown("[예적금 금리 비교](https://new-m.pay.naver.com/savings/list/saving)")
+                st.markdown("---")
+            else:
+                recommended_tickers_info = asset_recommendations[asset]['종목']
+                if recommended_tickers_info:
+                    st.write(f"**추천 종목/ETF:**")
+                    for name, ticker in recommended_tickers_info.items():
+                        if ticker != "N/A":
+                            col1, col2 = st.columns([0.5, 0.5])
+                            col1.write(f"- **{name}**")
+                            stock_data_series = get_stock_data(ticker, period="2d")
+
+                            if not stock_data_series.empty and len(stock_data_series) >= 1 and pd.api.types.is_numeric_dtype(stock_data_series):
+                                current_price = stock_data_series.iloc[-1]
+                                if len(stock_data_series) > 1 and pd.api.types.is_numeric_dtype(stock_data_series.iloc[-2]):
+                                    previous_price = stock_data_series.iloc[-2]
+                                    daily_change_percent = ((current_price - previous_price) / previous_price) * 100 if previous_price != 0 else 0
+                                    col2.metric("현재가", f"{current_price:,.2f}", f"{daily_change_percent:,.2f}%")
+                                else:
+                                    col2.metric("현재가", f"{current_price:,.2f}")
+                        else:
+                            st.write(f"- {name}")
+            st.markdown("---")
+
+elif selected_section == "💸 월별 투자 가이드":
+    # 필요한 session_state 값들을 가져오거나 경고
+    if 'risk_tolerance' not in st.session_state:
+        st.warning("먼저 '나의 투자 성향 선택' 섹션에서 투자 성향을 선택해주세요.")
+        st.stop()
+    if 'selected_assets' not in st.session_state:
+        st.warning("먼저 '포트폴리오 자산 선택' 섹션에서 자산을 선택해주세요.")
+        st.stop()
+    if 'portfolio_allocations' not in st.session_state:
+        st.warning("포트폴리오 비율을 계산하려면 '포트폴리오 자산 선택' 섹션에서 자산을 선택해주세요.")
+        st.stop()
+
+    risk_tolerance = st.session_state['risk_tolerance']
+    selected_assets = st.session_state['selected_assets']
+    portfolio = st.session_state['portfolio_allocations']
+
+
+    st.markdown("---")
     st.markdown("### 💸 월별 투자 가이드")
     st.markdown("월별 투자 금액과 각 자산군 내 선택 종목 수에 따라 맞춤형 투자 금액을 제안해 드립니다.")
 
-    # 1. 월 투자금액 선택
-    # 월별 투자금액 옵션 확장: 10만원부터 300만원까지 10만원 단위로
     monthly_investment_options = list(range(100000, 3000001, 100000))
     monthly_investment = st.select_slider(
         "월 투자 금액 (10만원 단위)",
         options=monthly_investment_options,
-        value=300000 # 기본값
+        value=300000,
+        key="monthly_investment_main"
     )
     st.write(f"선택하신 월 투자 금액은 **{monthly_investment:,.0f}원** 입니다.")
 
@@ -292,31 +330,93 @@ else:
     st.markdown("### 📌 자산군별 종목 선택")
     st.write("각 자산군에서 투자하고 싶은 종목들을 직접 선택해주세요.")
 
-    selected_portfolio_items = {} # 최종 선택된 종목과 티커를 저장할 딕셔너리 (이름: 티커)
-    # 채권의 세부 종목별 선택을 저장할 딕셔너리 추가
-    selected_bond_types = {}
-    # ETF 세부 종목별 선택을 저장할 딕셔너리 추가
-    selected_etf_items = {} 
+    selected_portfolio_items = {} # 주식, 금, 원자재 종목과 티커
+    selected_bond_types = {} # 채권 유형
+    selected_etf_items = {} # ETF 종목과 티커
 
-    # 각 자산군별로 종목을 선택하도록 UI 구성
+    asset_recommendations_for_monthly_guide = {
+        "금": {
+            "종목": {
+                "SPDR Gold Shares (GLD)": "GLD",
+                "iShares Gold Trust (IAU)": "IAU",
+                "KODEX 골드선물(H)": "132030.KS",
+                "KRX 금 시장": "N/A"
+            },
+            "설명": "금은 인플레이션 헤지 및 안전자산으로 선호됩니다."
+        },
+        "채권": {
+            "설명": "채권은 주식에 비해 안정적인 수익을 제공합니다.",
+            "세부종목": {
+                "단기채 (안정적, 낮은 수익률)": {
+                    "설명": "만기가 짧아 금리 변동에 덜 민감하고 안정적입니다.",
+                    "종목": {"KOSEF 단기자금": "123530.KS", "KBSTAR 국고채30년액티브": "306200.KS"}
+                },
+                "중장기채 (중간 위험, 중간 수익률)": {
+                    "설명": "금리 변동에 어느 정도 영향을 받습니다.",
+                    "종목": {"KODEX 국고채3년": "114260.KS", "TIGER 국채10년": "148070.KS"}
+                },
+                "장기채 (공격적, 높은 변동성)": {
+                    "설명": "만기가 길어 금리 변동에 매우 민감합니다.",
+                    "종목": {"iShares 20+ Year Treasury Bond ETF (TLT)": "TLT", "KODEX 미국채10년선물(H)": "308620.KS"}
+                }
+            }
+        },
+        "CMA/파킹통장 (현금)": {
+            "종목": {},
+            "설명": "단기 여유자금을 보관하며, 비교적 높은 금리의 이자를 매일 또는 매주 받을 수 있는 상품입니다."
+        },
+        "적금": {
+            "종목": {},
+            "설명": "정해진 기간 동안 꾸준히 저축하며, 확정된 금리 수익을 얻을 수 있는 안전한 상품입니다."
+        },
+        "ETF": {
+            "종목": {
+                "KODEX 미국S&P500TR": "379810.KS",
+                "TIGER 미국나스닥100": "133690.KS",
+                "KODEX 미국나스닥100TR": "395380.KS",
+                "SOL 미국배당다우존스": "446860.KS",
+                "ACE 미국배당다우존스": "449170.KS"
+            },
+            "특성": {
+                "KODEX 미국S&P500TR": "성장형",
+                "TIGER 미국나스닥100": "성장형",
+                "KODEX 미국나스닥100TR": "성장형",
+                "SOL 미국배당다우존스": "안정형",
+                "ACE 미국배당다우존스": "안정형"
+            },
+            "설명": "다양한 자산에 분산 투자하는 펀드를 주식처럼 거래할 수 있습니다."
+        },
+        "주식": {
+            "종목": {"삼성전자": "005930.KS", "SK하이닉스": "000660.KS", "네이버": "035420.KS", "카카오": "035720.KS"},
+            "설명": "개별 기업의 성장에 직접 투자하여 높은 수익을 추구할 수 있으나, 변동성이 매우 큽니다."
+        },
+        "원자재": {
+            "종목": {
+                "United States Oil Fund (USO)": "USO",
+                "Invesco DB Commodity Index Tracking Fund (DBC)": "DBC",
+                "Aberdeen Standard Physical Platinum Shares ETF (PPLT)": "PPLT",
+                "KODEX 구리선물(H)": "226340.KS"
+            },
+            "설명": "원유, 구리, 곡물, 귀금속 등 실물 자산에 투자합니다."
+        }
+    }
+
+
     for asset_type in selected_assets:
         if asset_type in ["CMA/파킹통장 (현금)", "적금"]:
-            # CMA/파킹통장, 적금은 종목 선택 없이 금액 배분으로 처리
             continue
 
         st.markdown(f"#### {asset_type} 종목 선택")
 
-        # --- 채권 특별 처리: 단기채, 중장기채, 장기채 중에서 선택 ---
         if asset_type == "채권":
-            bond_type_options = list(asset_recommendations["채권"]["세부종목"].keys())
-            
-            max_bond_choices = min(len(bond_type_options), 3) # 최대 3가지 유형
+            bond_type_options = list(asset_recommendations_for_monthly_guide["채권"]["세부종목"].keys())
+            max_bond_choices = min(len(bond_type_options), 3)
             num_bond_choices = st.slider(
                 f"{asset_type}에서 몇 가지 채권 유형에 투자하시겠어요?",
                 min_value=1,
                 max_value=max_bond_choices,
-                value=min(max_bond_choices, 2), # 기본 2가지 유형 선택
-                key=f"num_choices_{asset_type}_bond_type"
+                value=min(max_bond_choices, 2),
+                key=f"num_choices_{asset_type}_bond_type_monthly" # 고유 key
             )
 
             chosen_bond_types_names = []
@@ -328,7 +428,7 @@ else:
                 selected_bond_type_name = st.selectbox(
                     f"{asset_type} 유형 {i+1} 선택",
                     ["선택하세요"] + available_bond_options,
-                    key=f"{asset_type}_type_{i}"
+                    key=f"{asset_type}_type_{i}_monthly" # 고유 key
                 )
                 if selected_bond_type_name != "선택하세요":
                     chosen_bond_types_names.append(selected_bond_type_name)
@@ -337,25 +437,23 @@ else:
             if not chosen_bond_types_names and num_bond_choices > 0:
                 st.warning(f"{asset_type}에서 선택된 채권 유형이 없습니다. 다시 선택해주세요.")
             
-            continue 
-        # --- 채권 특별 처리 끝 ---
+            continue
 
-        # --- ETF 특별 처리: ETF 세부 종목 선택 로직 ---
         elif asset_type == "ETF":
-            current_etf_options = asset_recommendations[asset_type]['종목']
+            current_etf_options = asset_recommendations_for_monthly_guide[asset_type]['종목']
             current_etf_options = {name: ticker for name, ticker in current_etf_options.items() if ticker != "N/A"}
             
             if not current_etf_options:
                 st.info(f"선택 가능한 {asset_type} 종목이 없습니다.")
                 continue
 
-            max_choices = min(len(current_etf_options), 3) # ETF는 최대 3개 종목 선택
+            max_choices = min(len(current_etf_options), 3)
             num_choices = st.slider(
                 f"{asset_type}에서 몇 개의 종목에 투자하시겠어요?",
                 min_value=1,
                 max_value=max_choices,
-                value=min(max_choices, 2), # 기본 2개 선택
-                key=f"num_choices_{asset_type}"
+                value=min(max_choices, 2),
+                key=f"num_choices_{asset_type}_monthly" # 고유 key
             )
 
             chosen_etf_names = []
@@ -371,70 +469,66 @@ else:
                 selected_name = st.selectbox(
                     f"{asset_type} 종목 {i+1} 선택",
                     ["선택하세요"] + available_options,
-                    key=f"{asset_type}_item_{i}"
+                    key=f"{asset_type}_item_{i}_monthly" # 고유 key
                 )
                 if selected_name != "선택하세요":
                     chosen_etf_names.append(selected_name)
-                    selected_etf_items[selected_name] = current_etf_options[selected_name] # ETF 선택 저장
+                    selected_etf_items[selected_name] = current_etf_options[selected_name]
             
             if not chosen_etf_names and num_choices > 0:
                 st.warning(f"{asset_type}에서 선택된 종목이 없습니다. 다시 선택해주세요.")
             
-            continue # ETF는 여기서 처리 완료, 다음 자산군으로 넘어감
-        # --- ETF 특별 처리 끝 ---
-
-        # 기타 자산군 (주식, 금, 원자재)의 기존 종목 선택 로직
-        current_asset_options = {} # {이름: 티커}
-        if asset_type in asset_recommendations:
-            current_asset_options = asset_recommendations[asset_type]['종목']
-            current_asset_options = {name: ticker for name, ticker in current_asset_options.items() if ticker != "N/A"}
-        
-        if not current_asset_options:
-            st.info(f"선택 가능한 {asset_type} 종목이 없습니다.")
             continue
 
-        max_choices = min(len(current_asset_options), 5) # 최대 5개 또는 종목 수만큼
-        num_choices = st.slider(
-            f"{asset_type}에서 몇 개의 종목에 투자하시겠어요?",
-            min_value=1,
-            max_value=max_choices,
-            value=min(max_choices, 1), # 주식, 금, 원자재는 기본 1개 선택
-            key=f"num_choices_{asset_type}"
-        )
-
-        chosen_names_for_asset = []
-        for i in range(num_choices):
-            available_options = list(current_asset_options.keys())
+        else:
+            current_asset_options = {}
+            if asset_type in asset_recommendations_for_monthly_guide:
+                current_asset_options = asset_recommendations_for_monthly_guide[asset_type]['종목']
+                current_asset_options = {name: ticker for name, ticker in current_asset_options.items() if ticker != "N/A"}
             
-            for prev_choice_name in chosen_names_for_asset:
-                if prev_choice_name in available_options:
-                    available_options.remove(prev_choice_name)
+            if not current_asset_options:
+                st.info(f"선택 가능한 {asset_type} 종목이 없습니다.")
+                continue
 
-            if not available_options:
-                break
-
-            selected_name = st.selectbox(
-                f"{asset_type} 종목 {i+1} 선택",
-                ["선택하세요"] + available_options,
-                key=f"{asset_type}_item_{i}"
+            max_choices = min(len(current_asset_options), 5)
+            num_choices = st.slider(
+                f"{asset_type}에서 몇 개의 종목에 투자하시겠어요?",
+                min_value=1,
+                max_value=max_choices,
+                value=min(max_choices, 1),
+                key=f"num_choices_{asset_type}_monthly" # 고유 key
             )
-            if selected_name != "선택하세요":
-                chosen_names_for_asset.append(selected_name)
-                selected_portfolio_items[selected_name] = current_asset_options[selected_name]
 
-        if not chosen_names_for_asset and num_choices > 0:
-            st.warning(f"{asset_type}에서 선택된 종목이 없습니다. 다시 선택해주세요.")
+            chosen_names_for_asset = []
+            for i in range(num_choices):
+                available_options = list(current_asset_options.keys())
+                for prev_choice_name in chosen_names_for_asset:
+                    if prev_choice_name in available_options:
+                        available_options.remove(prev_choice_name)
+
+                if not available_options:
+                    break
+
+                selected_name = st.selectbox(
+                    f"{asset_type} 종목 {i+1} 선택",
+                    ["선택하세요"] + available_options,
+                    key=f"{asset_type}_item_{i}_monthly" # 고유 key
+                )
+                if selected_name != "선택하세요":
+                    chosen_names_for_asset.append(selected_name)
+                    selected_portfolio_items[selected_name] = current_asset_options[selected_name]
+
+            if not chosen_names_for_asset and num_choices > 0:
+                st.warning(f"{asset_type}에서 선택된 종목이 없습니다. 다시 선택해주세요.")
 
     st.markdown("---")
     st.markdown("### 💰 월별 추천 투자 금액")
 
     if st.button("포트폴리오 구성 제안 받기"):
-        # 채권 유형이 선택되지 않았지만 채권 자산군이 선택된 경우 경고 추가
         if "채권" in selected_assets and not selected_bond_types:
             st.warning("채권 자산군을 선택하셨지만, 채권 유형을 선택하지 않으셨습니다. 다시 선택해주세요.")
             st.stop()
         
-        # ETF가 선택되었지만 ETF 종목을 선택하지 않은 경우 경고 추가
         if "ETF" in selected_assets and not selected_etf_items:
             st.warning("ETF 자산군을 선택하셨지만, ETF 종목을 선택하지 않으셨습니다. 다시 선택해주세요.")
             st.stop()
@@ -444,8 +538,6 @@ else:
         else:
             st.subheader("💡 당신의 월별 투자 플랜")
             
-            # 주식, 금, 원자재 종목들의 현재가를 미리 가져옵니다. (ETF는 이제 현재가 미참조)
-            # ETF는 비중 계산 시 현재가를 참조하지 않으므로 selected_etf_items 제외
             tickers_for_price_check = {v for k, v in selected_portfolio_items.items() if k not in selected_etf_items}
             current_prices_cache = {}
             for ticker in tickers_for_price_check:
@@ -457,7 +549,6 @@ else:
 
             total_invested_amount = 0
 
-            # 4. 처음에 나타내준 원그래프 비중에 따라서 각 자산군별 투자 금액 계산
             st.markdown(f"#### 총 월 투자 금액: **{monthly_investment:,.0f}원**")
             st.markdown("---")
 
@@ -509,39 +600,35 @@ else:
                         else:
                             st.write("- 채권 유형을 선택하지 않으셨습니다.")
 
-                    elif asset == "ETF": # ETF에 대한 특별 처리 로직
+                    elif asset == "ETF":
                         if selected_etf_items:
                             st.write(f"**추천 ETF 종목별 구매 금액:**")
                             etf_allocations = {}
                             
-                            # ETF 특성 가져오기
-                            etf_properties = asset_recommendations["ETF"]["특성"]
+                            etf_properties = asset_recommendations_for_monthly_guide["ETF"]["특성"]
                             
-                            # 투자 성향에 따른 가중치 계산
-                            # 안정성(0)이 높을수록 안정형 ETF 비중 증가
-                            # 공격성(100)이 높을수록 성장형 ETF 비중 증가
-                            stability_weight = 1 # 안정형 ETF 기본 가중치
-                            growth_weight = 1    # 성장형 ETF 기본 가중치
+                            stability_weight = 1
+                            growth_weight = 1
 
-                            if risk_tolerance < 50: # 안정성 선호
-                                stability_weight += (50 - risk_tolerance) * 0.05 # 0 -> 1+2.5 = 3.5
-                                growth_weight -= (50 - risk_tolerance) * 0.05    # 0 -> 1-2.5 = -1.5 (최소 0.1)
-                            elif risk_tolerance > 50: # 공격성 선호
-                                growth_weight += (risk_tolerance - 50) * 0.05    # 100 -> 1+2.5 = 3.5
-                                stability_weight -= (risk_tolerance - 50) * 0.05 # 100 -> 1-2.5 = -1.5 (최소 0.1)
+                            if risk_tolerance < 50:
+                                stability_weight += (50 - risk_tolerance) * 0.05
+                                growth_weight -= (50 - risk_tolerance) * 0.05
+                            elif risk_tolerance > 50:
+                                growth_weight += (risk_tolerance - 50) * 0.05
+                                stability_weight -= (risk_tolerance - 50) * 0.05
                             
                             stability_weight = max(0.1, stability_weight)
                             growth_weight = max(0.1, growth_weight)
 
                             total_etf_weight = 0
                             for etf_name in selected_etf_items:
-                                etf_type = etf_properties.get(etf_name, "기타") # 정의되지 않은 ETF는 '기타'로 분류
+                                etf_type = etf_properties.get(etf_name, "기타")
                                 
                                 if etf_type == "안정형":
                                     etf_allocations[etf_name] = stability_weight
                                 elif etf_type == "성장형":
                                     etf_allocations[etf_name] = growth_weight
-                                else: # '기타' 또는 특성이 정의되지 않은 ETF는 중간 가중치
+                                else:
                                     etf_allocations[etf_name] = 1 
                                 
                                 total_etf_weight += etf_allocations[etf_name]
@@ -555,10 +642,10 @@ else:
                         else:
                             st.write("- 선택하신 ETF 종목이 없습니다.")
 
-                    else: # 주식, 금, 원자재
+                    else:
                         actual_selected_tickers_for_asset = {}
-                        if asset in asset_recommendations:
-                            for rec_name, rec_ticker in asset_recommendations[asset]['종목'].items():
+                        if asset in asset_recommendations_for_monthly_guide:
+                            for rec_name, rec_ticker in asset_recommendations_for_monthly_guide[asset]['종목'].items():
                                 if rec_name in selected_portfolio_items and selected_portfolio_items[rec_name] == rec_ticker:
                                     actual_selected_tickers_for_asset[rec_name] = rec_ticker
 
@@ -568,7 +655,7 @@ else:
                             valid_items_with_prices = {
                                 name: current_prices_cache[ticker]
                                 for name, ticker in actual_selected_tickers_for_asset.items()
-                                if current_prices_cache.get(ticker) is not None # None이 아닌 유효한 가격만 포함
+                                if current_prices_cache.get(ticker) is not None
                             }
 
                             if valid_items_with_prices:
@@ -599,6 +686,3 @@ else:
                             st.write(f"- {asset}군 내 선택하신 종목이 없습니다. 다시 선택해주세요.")
                     st.markdown("---")
             st.success(f"**총 {total_invested_amount:,.0f}원**에 대한 포트폴리오 구성 제안이 완료되었습니다.")
-
-st.sidebar.markdown("---")
-st.sidebar.markdown("© 2025 AI 투자 도우미")
