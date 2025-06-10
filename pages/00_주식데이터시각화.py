@@ -4,9 +4,6 @@ import pandas as pd
 import plotly.graph_objects as go
 
 # 1. 글로벌 시총 TOP 10 기업 티커 (2025년 6월 기준 예상, 실제 시점에 따라 변동 가능)
-# 실제 2025년 6월 TOP 10은 변동될 수 있으므로, 실제 서비스를 구현하실 때는
-# 최신 데이터를 참고하여 티커를 업데이트 해주셔야 합니다.
-# 여기서는 예시를 위해 현재(2024년 말 기준) TOP 10과 유사한 기업들을 포함했습니다.
 top_10_tickers = [
     "MSFT",  # Microsoft
     "AAPL",  # Apple
@@ -33,20 +30,56 @@ def load_stock_data(tickers, start_date, end_date):
 
     for ticker in tickers:
         try:
-            # yfinance로 주가 데이터 다운로드
-            # progress=False 로 설정하여 다운로드 시 콘솔에 나타나는 진행률 표시를 비활성화합니다.
             df = yf.download(ticker, start=start_date, end=end_date, progress=False)
 
-            # 데이터프레임이 비어있지 않고, 'Adj Close' 컬럼이 있는지 확인
-            if not df.empty and 'Adj Close' in df.columns:
-                data[ticker] = df['Adj Close']
-                successful_tickers.append(ticker)
-            elif not df.empty and 'Adj Close' not in df.columns:
-                st.warning(f"⚠️ **{ticker}**: 데이터를 가져왔으나 'Adj Close' 컬럼을 찾을 수 없습니다. 사용 가능한 컬럼: {df.columns.tolist()}")
-                failed_tickers.append(ticker)
-            else:
+            if df.empty:
                 st.warning(f"⚠️ **{ticker}**: 해당 기간의 주가 데이터를 찾을 수 없거나 데이터가 비어 있습니다.")
                 failed_tickers.append(ticker)
+                continue # 다음 티커로 넘어감
+
+            # 컬럼 확인 및 데이터 추출 로직 강화
+            # 1순위: 'Adj Close' 컬럼이 있는지 확인
+            if 'Adj Close' in df.columns:
+                data[ticker] = df['Adj Close']
+                successful_tickers.append(ticker)
+            # 2순위: 'Close' 컬럼이 있는지 확인 (Adj Close가 없을 경우)
+            elif 'Close' in df.columns:
+                st.warning(f"⚠️ **{ticker}**: 'Adj Close' 컬럼이 없어 'Close' 컬럼으로 데이터를 사용합니다.")
+                data[ticker] = df['Close']
+                successful_tickers.append(ticker)
+            # 3순위: 컬럼이 튜플 형태의 멀티인덱스이고 'Adj Close'가 포함된 경우
+            # 이 경우는 현재 주어진 오류 메시지와는 다르게 'Adj Close'가 실제 존재할 때를 대비
+            elif any(('Adj Close', t) in df.columns for t in df.columns.levels[1] if isinstance(df.columns, pd.MultiIndex)):
+                adj_close_col_name = None
+                for col_tuple in df.columns:
+                    if isinstance(col_tuple, tuple) and 'Adj Close' in col_tuple:
+                        adj_close_col_name = col_tuple
+                        break
+                if adj_close_col_name:
+                    data[ticker] = df[adj_close_col_name]
+                    successful_tickers.append(ticker)
+                    st.warning(f"⚠️ **{ticker}**: 멀티인덱스 컬럼에서 'Adj Close'를 찾아 사용합니다.")
+                else:
+                    st.warning(f"⚠️ **{ticker}**: 멀티인덱스 컬럼에서 'Adj Close'를 찾을 수 없습니다. 사용 가능한 컬럼: {df.columns.tolist()}")
+                    failed_tickers.append(ticker)
+            # 4순위: 컬럼이 튜플 형태의 멀티인덱스이고 'Close'가 포함된 경우
+            elif any(('Close', t) in df.columns for t in df.columns.levels[1] if isinstance(df.columns, pd.MultiIndex)):
+                close_col_name = None
+                for col_tuple in df.columns:
+                    if isinstance(col_tuple, tuple) and 'Close' in col_tuple:
+                        close_col_name = col_tuple
+                        break
+                if close_col_name:
+                    data[ticker] = df[close_col_name]
+                    successful_tickers.append(ticker)
+                    st.warning(f"⚠️ **{ticker}**: 멀티인덱스 컬럼에서 'Adj Close' 대신 'Close'를 찾아 사용합니다.")
+                else:
+                    st.warning(f"⚠️ **{ticker}**: 멀티인덱스 컬럼에서 'Close'를 찾을 수 없습니다. 사용 가능한 컬럼: {df.columns.tolist()}")
+                    failed_tickers.append(ticker)
+            else:
+                st.warning(f"⚠️ **{ticker}**: 'Adj Close' 또는 'Close' 컬럼을 찾을 수 없습니다. 사용 가능한 컬럼: {df.columns.tolist()}")
+                failed_tickers.append(ticker)
+
         except Exception as e:
             st.error(f"❌ **{ticker}**: 주가 데이터를 다운로드하는 중 오류가 발생했습니다: {e}")
             failed_tickers.append(ticker)
@@ -59,6 +92,7 @@ def load_stock_data(tickers, start_date, end_date):
         return pd.DataFrame({k: data[k] for k in successful_tickers})
     else:
         return pd.DataFrame() # 모든 데이터 로드 실패 시 빈 DataFrame 반환
+
 
 # 4. 날짜 범위 설정 (최근 3년)
 end_date = pd.to_datetime('today').strftime('%Y-%m-%d')
@@ -77,9 +111,8 @@ if selected_tickers:
 
     if not stock_data.empty:
         # 6. 주가 변화율 계산 (선택 사항: 정규화된 주가)
-        # 모든 기업의 주가 변화를 동일 선상에서 비교하기 위해 첫 날을 기준으로 정규화합니다.
-        # 데이터프레임이 비어있지 않은지 다시 한번 확인 후 정규화 진행
-        if not stock_data.empty and not stock_data.iloc[0].isnull().all(): # 첫 행이 모두 NaN이 아닌지 확인
+        # 데이터프레임이 비어있지 않고, 첫 행이 모두 NaN이 아닌지 확인
+        if not stock_data.empty and not stock_data.iloc[0].isnull().all():
             normalized_stock_data = stock_data / stock_data.iloc[0] * 100
             st.subheader("기업별 주가 변화율 (최초일 기준 100% 정규화)")
             fig = go.Figure()
