@@ -14,18 +14,20 @@ def get_stock_data(ticker, period="1y"):
     yfinance를 사용하여 주식/ETF 데이터를 가져오는 함수.
     'Adj Close' 데이터가 없을 경우 'Close' 데이터를 사용하고,
     데이터가 없으면 안전하게 빈 Series를 반환하여 호출 측에서 처리하도록 함.
+    (경고 메시지 출력 제거)
     """
     try:
         data = yf.download(ticker, period=period)
 
         if data.empty:
+            # 데이터가 아예 없을 경우에만 사용자에게 메시지 표시
             st.warning(f"'{ticker}' 종목에 대한 데이터를 찾을 수 없습니다. (데이터 없음)")
             return pd.Series(dtype='float64') # 빈 Series 반환
 
         if 'Adj Close' in data.columns and not data['Adj Close'].empty:
             return data['Adj Close']
         elif 'Close' in data.columns and not data['Close'].empty:
-            st.warning(f"'{ticker}' 종목에 대한 'Adj Close' 데이터를 찾을 수 없어 'Close' 데이터를 사용합니다.")
+            # 'Adj Close' 대신 'Close'를 사용할 때의 경고 메시지를 제거
             return data['Close']
         else:
             st.error(f"'{ticker}' 종목에 대한 'Adj Close' 또는 'Close' 데이터를 찾을 수 없습니다.")
@@ -172,7 +174,7 @@ else:
                             col1, col2, col3 = st.columns([0.3, 0.2, 0.5])
                             col1.write(f"- **{name}**")
                             # 실시간 데이터 연동 (yfinance)
-                            # period="1d"는 오늘 하루의 데이터만 가져옴. 주말이나 공휴일 등 데이터가 없을 수 있음.
+                            # period="2d"는 오늘 하루의 데이터만 가져오기에 주말이나 공휴일 등 데이터가 없을 수 있음.
                             # 안정성을 위해 최소 2일치를 요청하고 최신 2개 데이터로 현재가와 전일 변화율 계산
                             stock_data_series = get_stock_data(ticker, period="2d")
 
@@ -209,7 +211,7 @@ else:
         st.markdown("선택된 자산 비중에 따라 **과거 데이터**로 포트폴리오 수익률을 **매우 간략하게** 시뮬레이션 합니다. **실제 수익률과는 차이가 있을 수 있습니다.**")
 
         # 백테스팅 기간 설정
-        # 현재 시간: Tuesday, June 10, 2025 at 6:52:20 PM KST.
+        # 현재 시간: Tuesday, June 10, 2025 at 6:53:36 PM KST.
         current_date_for_default = datetime.date(2025, 6, 10) # 현재 날짜를 2025년 6월 10일로 가정
         default_start_date = (current_date_for_default - pd.DateOffset(years=1)).date()
         default_end_date = current_date_for_default
