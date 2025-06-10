@@ -17,11 +17,15 @@ def get_stock_data(ticker, period="1y"):
     데이터가 없으면 안전하게 빈 Series를 반환하여 호출 측에서 처리하도록 함.
     """
     try:
-        data = yf.download(ticker, period=period)
+        # data = yf.download(ticker, period=period, progress=False) # progress=False 추가하여 터미널 출력 줄이기
+        # yfinance의 download 함수는 ticker가 유효하지 않으면 빈 DataFrame을 반환하거나 에러를 낼 수 있음.
+        # period="1d"로 변경하여 가장 최신 데이터만 가져오도록 최적화
+        data = yf.download(ticker, period="1d", progress=False)
 
         if data.empty:
             return pd.Series(dtype='float64') # 빈 Series 반환
 
+        # 'Adj Close'가 없으면 'Close' 사용
         if 'Adj Close' in data.columns and not data['Adj Close'].empty:
             return data['Adj Close']
         elif 'Close' in data.columns and not data['Close'].empty:
@@ -29,7 +33,8 @@ def get_stock_data(ticker, period="1y"):
         else:
             return pd.Series(dtype='float64') # 유효한 컬럼이 없으면 빈 Series 반환
 
-    except Exception:
+    except Exception as e:
+        # st.warning(f"데이터 로딩 중 오류 발생 ({ticker}): {e}") # 디버깅용, 실제 배포 시 제거
         return pd.Series(dtype='float64')
 
 # --- 앱 본문 시작 ---
@@ -359,11 +364,11 @@ else:
             all_selected_tickers = {v for k, v in selected_portfolio_items.items()}
             current_prices_cache = {}
             for ticker in all_selected_tickers:
-                price_series = get_stock_data(ticker, period="1d")
+                price_series = get_stock_data(ticker, period="1d") # 최신 1일 데이터만
                 if not price_series.empty:
                     current_prices_cache[ticker] = price_series.iloc[-1]
                 else:
-                    current_prices_cache[ticker] = None
+                    current_prices_cache[ticker] = None # 데이터를 가져오지 못한 경우 None 저장
 
             total_invested_amount = 0
 
@@ -380,21 +385,34 @@ else:
                     if asset in ["CMA/파킹통장 (현금)", "적금"]:
                         st.write(f"- `{asset_amount:,.0f}원`을 {asset}에 예치하는 것을 추천합니다. (위의 비교 링크를 활용하세요.)")
                     else: # 주식, ETF, 채권, 금, 원자재 등 종목 선택이 필요한 자산
-                        # 해당 자산군에 속하며 사용자가 선택한 종목들만 필터링
                         selected_items_in_current_asset = {
                             name: ticker
                             for name, ticker in selected_portfolio_items.items()
-                            if (asset == "채권" and any(name in sub_info['종목'] for sub_info in asset_recommendations["채권"]["세부종목"].values())) or \
-                               (asset != "채권" and asset in asset_recommendations and name in asset_recommendations[asset]['종목'])
+                            # 이 부분은 asset_recommendations를 참조하여 현재 asset_type에 속하는지 다시 확인해야 합니다.
+                            # selected_portfolio_items에는 모든 자산군에서 선택된 종목들이 다 들어있습니다.
+                            # 따라서 현재 asset_type에 해당하는 종목만 필터링해야 합니다.
                         }
                         
-                        if selected_items_in_current_asset:
+                        # --- 여기부터 해당 자산군에 선택된 종목만 정확히 필터링하는 로직 강화 ---
+                        actual_selected_tickers_for_asset = {}
+                        if asset == "채권":
+                            for bond_type, bond_info in asset_recommendations["채권"]["세부종목"].items():
+                                for rec_name, rec_ticker in bond_info['종목'].items():
+                                    if rec_name in selected_portfolio_items and selected_portfolio_items[rec_name] == rec_ticker:
+                                        actual_selected_tickers_for_asset[rec_name] = rec_ticker
+                        elif asset in asset_recommendations:
+                            for rec_name, rec_ticker in asset_recommendations[asset]['종목'].items():
+                                if rec_name in selected_portfolio_items and selected_portfolio_items[rec_name] == rec_ticker:
+                                    actual_selected_tickers_for_asset[rec_name] = rec_ticker
+                        # --- 필터링 로직 강화 끝 ---
+
+                        if actual_selected_tickers_for_asset:
                             st.write(f"**추천 종목별 구매 금액:**")
                             
                             valid_items_with_prices = {
                                 name: current_prices_cache[ticker]
-                                for name, ticker in selected_items_in_current_asset.items()
-                                if current_prices_cache.get(ticker) is not None
+                                for name, ticker in actual_selected_tickers_for_asset.items()
+                                if current_prices_cache.get(ticker) is not None # None이 아닌 유효한 가격만 포함
                             }
 
                             if valid_items_with_prices:
@@ -404,31 +422,28 @@ else:
                                     remaining_amount_for_asset = asset_amount
                                     
                                     for name, price in valid_items_with_prices.items():
-                                        num_shares = np.floor(amount_per_valid_item / price) 
-                                        
-                                        # num_shares가 Series일 경우, 단일 값으로 추출
-                                        if isinstance(num_shares, pd.Series):
-                                            if not num_shares.empty:
-                                                num_shares_scalar = num_shares.item() 
-                                            else:
-                                                num_shares_scalar = 0 
-                                        else:
-                                            num_shares_scalar = num_shares 
+                                        # price가 float/int인지 확신
+                                        if isinstance(price, (int, float)):
+                                            num_shares_raw = amount_per_valid_item / price
+                                            num_shares_scalar = np.floor(num_shares_raw).item() # .item()으로 스칼라 값 보장
 
-                                        if num_shares_scalar > 0:
-                                            purchase_amount = num_shares_scalar * price
-                                            st.write(f"- **{name}**: 약 **{purchase_amount:,.0f}원** ({int(num_shares_scalar)}주/개 구매 가능)")
-                                            remaining_amount_for_asset -= purchase_amount
+                                            if num_shares_scalar > 0:
+                                                purchase_amount = num_shares_scalar * price
+                                                # Ensure purchase_amount is float/int before formatting
+                                                st.write(f"- **{name}**: 약 **{float(purchase_amount):,.0f}원** ({int(num_shares_scalar)}주/개 구매 가능)")
+                                                remaining_amount_for_asset -= purchase_amount
+                                            else:
+                                                st.write(f"- **{name}**: **{float(price):,.0f}원** (1주/개 구매 금액) - 현재 배분 금액으로는 1주/개 구매 어려움.")
                                         else:
-                                            st.write(f"- **{name}**: **{price:,.0f}원** (1주/개 구매 금액) - 현재 배분 금액으로는 1주/개 구매 어려움.")
-                                    
+                                            st.write(f"- **{name}**: 가격 정보를 가져올 수 없습니다. ({asset_amount:,.0f}원 배분 예정)")
+                                            
                                     if remaining_amount_for_asset > 0.01: # 미미한 잔액은 무시
                                         st.write(f"*{asset}군 내 남은 금액: {remaining_amount_for_asset:,.0f}원 (소수점 이하 또는 1주/개 미만으로 남을 수 있습니다.)*")
-                                else:
+                                else: # num_valid_items가 0인 경우 (price가 모두 None)
                                     st.write(f"- {asset}군 내 선택하신 종목의 현재가 정보를 가져올 수 없습니다. (해당 자산군 내 투자 금액: {asset_amount:,.0f}원)")
-                            else:
+                            else: # valid_items_with_prices가 비어있는 경우 (모든 종목 가격 None)
                                 st.write(f"- {asset}군 내 선택하신 모든 종목의 현재가 정보를 가져올 수 없어 정확한 금액 산출이 어렵습니다. (해당 자산군 내 투자 금액: {asset_amount:,.0f}원)")
-                        else:
+                        else: # actual_selected_tickers_for_asset이 비어있는 경우
                             st.write(f"- {asset}군 내 선택하신 종목이 없습니다. 다시 선택해주세요.")
                     st.markdown("---")
             st.success(f"**총 {total_invested_amount:,.0f}원**에 대한 포트폴리오 구성 제안이 완료되었습니다.")
