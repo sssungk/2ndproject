@@ -189,7 +189,7 @@ else:
             "원자재": {
                 "종목": {
                     "United States Oil Fund (USO)": "USO", # 원유 ETF
-                    "Invesco DB Commodity Index Tracking Fund (DBC)": "DBC", # 종합 원자재 ETF
+                    "Invesco DB Commodity Index Index Tracking Fund (DBC)": "DBC", # 종합 원자재 ETF
                     "Aberdeen Standard Physical Platinum Shares ETF (PPLT)": "PPLT", # 백금 ETF
                     "KODEX 구리선물(H)": "226340.KS" # 국내 구리 ETF
                 },
@@ -401,7 +401,7 @@ else:
                 if not price_series.empty:
                     current_prices_cache[ticker] = price_series.iloc[-1]
                 else:
-                    current_prices_cache[ticker] = None # 데이터를 가져오지 못한 경우 None 저장
+                    current_prices_cache[ticker] = None
 
             total_invested_amount = 0
 
@@ -420,43 +420,53 @@ else:
                     elif asset == "채권":
                         if selected_bond_types:
                             st.write(f"**추천 채권 유형별 구매 금액:**")
+                            # 채권 유형별 비중 배분 로직 (투자 성향 반영)
                             bond_type_allocations = {}
                             num_selected_bond_types = len(selected_bond_types)
                             
-                            short_term_weight = 1
-                            mid_long_term_weight = 1
-                            long_term_weight = 1
+                            # 투자 성향에 따른 채권 유형별 비중 조정
+                            # 안정성(0)이 높을수록 단기채 비중 높고, 공격성(100)이 높을수록 장기채 비중 높음
+                            # 중간(50)일 때 균등 배분
+                            if num_selected_bond_types > 0:
+                                # 단기채, 중장기채, 장기채의 가중치 초기화
+                                short_term_weight = 1
+                                mid_long_term_weight = 1
+                                long_term_weight = 1
 
-                            if risk_tolerance < 50:
-                                short_term_weight += (50 - risk_tolerance) * 0.04
-                                long_term_weight -= (50 - risk_tolerance) * 0.04
-                            elif risk_tolerance > 50:
-                                long_term_weight += (risk_tolerance - 50) * 0.04
-                                short_term_weight -= (risk_tolerance - 50) * 0.04
-                            
-                            short_term_weight = max(0.1, short_term_weight)
-                            mid_long_term_weight = max(0.1, mid_long_term_weight)
-                            long_term_weight = max(0.1, long_term_weight)
+                                # 리스크 성향에 따른 가중치 조정
+                                if risk_tolerance < 50: # 안정성 선호
+                                    short_term_weight += (50 - risk_tolerance) * 0.04 # 0 -> 1+2 = 3
+                                    long_term_weight -= (50 - risk_tolerance) * 0.04 # 0 -> 1-2 = -1 (최소 0.1으로)
+                                elif risk_tolerance > 50: # 공격성 선호
+                                    long_term_weight += (risk_tolerance - 50) * 0.04 # 100 -> 1+2 = 3
+                                    short_term_weight -= (risk_tolerance - 50) * 0.04 # 100 -> 1-2 = -1 (최소 0.1으로)
+                                
+                                # 가중치 음수 방지 및 최소값 설정
+                                short_term_weight = max(0.1, short_term_weight)
+                                mid_long_term_weight = max(0.1, mid_long_term_weight) # 중장기채는 비교적 중립 유지
+                                long_term_weight = max(0.1, long_term_weight)
 
-                            total_weight = 0
-                            if "단기채 (안정적, 낮은 수익률)" in selected_bond_types:
-                                bond_type_allocations["단기채 (안정적, 낮은 수익률)"] = short_term_weight
-                                total_weight += short_term_weight
-                            if "중장기채 (중간 위험, 중간 수익률)" in selected_bond_types:
-                                bond_type_allocations["중장기채 (중간 위험, 중간 수익률)"] = mid_long_term_weight
-                                total_weight += mid_long_term_weight
-                            if "장기채 (공격적, 높은 변동성)" in selected_bond_types:
-                                bond_type_allocations["장기채 (공격적, 높은 변동성)"] = long_term_weight
-                                total_weight += long_term_weight
+                                total_weight = 0
+                                if "단기채 (안정적, 낮은 수익률)" in selected_bond_types:
+                                    bond_type_allocations["단기채 (안정적, 낮은 수익률)"] = short_term_weight
+                                    total_weight += short_term_weight
+                                if "중장기채 (중간 위험, 중간 수익률)" in selected_bond_types:
+                                    bond_type_allocations["중장기채 (중간 위험, 중간 수익률)"] = mid_long_term_weight
+                                    total_weight += mid_long_term_weight
+                                if "장기채 (공격적, 높은 변동성)" in selected_bond_types:
+                                    bond_type_allocations["장기채 (공격적, 높은 변동성)"] = long_term_weight
+                                    total_weight += long_term_weight
 
-                            if total_weight > 0:
-                                for bond_type_name, weight in bond_type_allocations.items():
-                                    recommended_bond_amount = asset_amount * (weight / total_weight)
-                                    st.write(f"- **{bond_type_name}**: 약 **{recommended_bond_amount:,.0f}원** 투자")
+                                if total_weight > 0:
+                                    for bond_type_name, weight in bond_type_allocations.items():
+                                        recommended_bond_amount = asset_amount * (weight / total_weight)
+                                        st.write(f"- **{bond_type_name}**: 약 **{recommended_bond_amount:,.0f}원** 투자")
+                                else:
+                                    st.write("- 선택하신 채권 유형에 대한 비중을 설정할 수 없습니다.")
                             else:
-                                st.write("- 선택하신 채권 유형에 대한 비중을 설정할 수 없습니다.")
+                                st.write("- 채권 유형을 선택하지 않으셨습니다.")
                         else:
-                            st.write("- 채권 유형을 선택하지 않으셨습니다.")
+                            st.write("- 선택하신 채권 유형이 없습니다.")
 
                     else: # 주식, ETF, 금, 원자재
                         actual_selected_tickers_for_asset = {}
@@ -468,43 +478,39 @@ else:
                         if actual_selected_tickers_for_asset:
                             st.write(f"**추천 종목별 구매 금액:**")
                             
-                            # 가격 정보를 가져온 유효한 종목만 필터링합니다.
                             valid_items_with_prices = {
                                 name: current_prices_cache[ticker]
                                 for name, ticker in actual_selected_tickers_for_asset.items()
-                                if current_prices_cache.get(ticker) is not None # None이 아닌 유효한 가격만 포함
+                                if current_prices_cache.get(ticker) is not None
                             }
 
                             if valid_items_with_prices:
                                 num_valid_items = len(valid_items_with_prices)
-                                amount_per_valid_item = asset_amount / num_valid_items
-                                remaining_amount_for_asset = asset_amount
-                                
-                                for name, price in valid_items_with_prices.items():
-                                    if isinstance(price, (int, float)):
-                                        num_shares_raw = amount_per_valid_item / price
-                                        num_shares_scalar = np.floor(num_shares_raw).item()
-
-                                        if num_shares_scalar > 0:
-                                            purchase_amount = num_shares_scalar * price
-                                            st.write(f"- **{name}**: 약 **{float(purchase_amount):,.0f}원** ({int(num_shares_scalar)}주/개 구매 가능)")
-                                            remaining_amount_for_asset -= purchase_amount
-                                        else:
-                                            st.write(f"- **{name}**: **{float(price):,.0f}원** (1주/개 구매 금액) - 현재 배분 금액으로는 1주/개 구매 어려움.")
-                                    # else: # 이 부분의 메시지를 제거합니다. 가격을 가져오지 못하면 목록에서 제외되므로 이 메시지는 필요 없습니다.
-                                    #     st.write(f"- **{name}**: 가격 정보를 가져올 수 없습니다. ({asset_amount:,.0f}원 배분 예정)")
-                                            
-                                if remaining_amount_for_asset > 0.01:
-                                    st.write(f"*{asset}군 내 남은 금액: {remaining_amount_for_asset:,.0f}원 (소수점 이하 또는 1주/개 미만으로 남을 수 있습니다.)*")
+                                if num_valid_items > 0:
+                                    amount_per_valid_item = asset_amount / num_valid_items
+                                    remaining_amount_for_asset = asset_amount
                                     
-                                # 가격 정보를 가져오지 못한 종목이 있다면, 그 종목에 대한 메시지는 생략합니다.
-                                # 대신, 모든 종목의 가격을 가져오지 못한 경우에만 안내합니다.
-                                if not valid_items_with_prices and actual_selected_tickers_for_asset:
-                                    st.write(f"- {asset}군 내 선택하신 모든 종목의 현재가 정보를 가져올 수 없어 정확한 금액 산출이 어렵습니다. (해당 자산군 내 투자 금액: {asset_amount:,.0f}원)")
+                                    for name, price in valid_items_with_prices.items():
+                                        if isinstance(price, (int, float)):
+                                            num_shares_raw = amount_per_valid_item / price
+                                            num_shares_scalar = np.floor(num_shares_raw).item()
 
-                            else: # valid_items_with_prices가 비어있는 경우 (모든 종목 가격 None)
+                                            if num_shares_scalar > 0:
+                                                purchase_amount = num_shares_scalar * price
+                                                st.write(f"- **{name}**: 약 **{float(purchase_amount):,.0f}원** ({int(num_shares_scalar)}주/개 구매 가능)")
+                                                remaining_amount_for_asset -= purchase_amount
+                                            else:
+                                                st.write(f"- **{name}**: **{float(price):,.0f}원** (1주/개 구매 금액) - 현재 배분 금액으로는 1주/개 구매 어려움.")
+                                        else:
+                                            st.write(f"- **{name}**: 가격 정보를 가져올 수 없습니다. ({asset_amount:,.0f}원 배분 예정)")
+                                            
+                                    if remaining_amount_for_asset > 0.01:
+                                        st.write(f"*{asset}군 내 남은 금액: {remaining_amount_for_asset:,.0f}원 (소수점 이하 또는 1주/개 미만으로 남을 수 있습니다.)*")
+                                else:
+                                    st.write(f"- {asset}군 내 선택하신 종목의 현재가 정보를 가져올 수 없습니다. (해당 자산군 내 투자 금액: {asset_amount:,.0f}원)")
+                            else:
                                 st.write(f"- {asset}군 내 선택하신 모든 종목의 현재가 정보를 가져올 수 없어 정확한 금액 산출이 어렵습니다. (해당 자산군 내 투자 금액: {asset_amount:,.0f}원)")
-                        else: # actual_selected_tickers_for_asset이 비어있는 경우 (선택한 종목이 없는 경우)
+                        else:
                             st.write(f"- {asset}군 내 선택하신 종목이 없습니다. 다시 선택해주세요.")
                     st.markdown("---")
             st.success(f"**총 {total_invested_amount:,.0f}원**에 대한 포트폴리오 구성 제안이 완료되었습니다.")
