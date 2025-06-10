@@ -35,7 +35,7 @@ def get_stock_data(ticker, period="1y"):
 
 # --- 앱 본문 시작 ---
 
-# 4. '투자위험고지'는 자신의 투자 성향을 선택하는 것보다 위에 위치하도록 수정
+# '투자위험고지'는 자신의 투자 성향을 선택하는 것보다 위에 위치
 st.markdown("---")
 st.markdown("### ⚠️ 중요: 투자 위험 고지")
 st.warning(
@@ -203,6 +203,17 @@ else:
                 st.markdown(f"#### ➡️ {asset}")
                 st.write(f"**설명:** {asset_recommendations[asset]['설명']}")
 
+                # 2. '투자 팁: ISA 계좌 활용'을 ETF 섹션 바로 아래로 이동
+                if asset == "ETF":
+                    st.markdown("### 💡 투자 팁: ISA 계좌 활용")
+                    st.info(
+                        "주식, ETF 등 일부 금융 상품을 개인 계좌에서 구매하는 것보다 **ISA (Individual Savings Account) 계좌**를 통해 구매하는 것을 고려해보세요.\n"
+                        "ISA 계좌는 일정 한도 내에서 **비과세 또는 저율 분리과세 혜택**을 받을 수 있어 절세에 유리합니다.\n"
+                        "특히, **ETF**와 같은 상품은 ISA 계좌에서 매매차익에 대한 세금 혜택을 받을 수 있으니, 자세한 내용은 증권사에 문의하거나 관련 정보를 찾아보시길 권합니다.\n"
+                        "**연금저축펀드**와 **IRP** 계좌도 노후 대비 및 세액공제 혜택이 있으니 함께 알아보시면 좋습니다."
+                    )
+                    st.markdown("---") # 팁과 종목 사이에 구분선 추가
+
                 # 채권의 경우 세분화된 종목을 표시
                 if asset == "채권":
                     for bond_type, bond_info in asset_recommendations[asset]['세부종목'].items():
@@ -211,8 +222,8 @@ else:
                         st.write(f"**추천 종목/ETF:**")
                         if bond_info['종목']:
                             for name, ticker in bond_info['종목'].items():
-                                col1, col2 = st.columns([0.5, 0.5]) # 티커는 표시하지 않도록 컬럼 조정
-                                col1.write(f"- **{name}**")
+                                col1, col2 = st.columns([0.5, 0.5])
+                                col1.write(f"- **{name}**") # 종목명만 표시
                                 stock_data_series = get_stock_data(ticker, period="2d")
                                 if not stock_data_series.empty and len(stock_data_series) >= 1 and pd.api.types.is_numeric_dtype(stock_data_series):
                                     current_price = stock_data_series.iloc[-1]
@@ -222,8 +233,7 @@ else:
                                         col2.metric("현재가", f"{current_price:,.2f}", f"{daily_change_percent:,.2f}%")
                                     else:
                                         col2.metric("현재가", f"{current_price:,.2f}")
-                                else:
-                                    col2.write("데이터 없음") # 데이터가 없을 때만 "데이터 없음" 표시
+                                # 데이터가 없는 경우 아무것도 표시하지 않음 (이전에는 '데이터 없음'이 출력됨)
                         else:
                             st.write("- (추천 종목 없음)")
                 # CMA/파킹통장 또는 적금은 링크로 대체
@@ -241,9 +251,9 @@ else:
                     if recommended_tickers_info:
                         st.write(f"**추천 종목/ETF:**")
                         for name, ticker in recommended_tickers_info.items():
-                            if ticker != "N/A": # N/A인 경우 현재가 표시하지 않음 (KRX 금 시장 등)
-                                col1, col2 = st.columns([0.5, 0.5]) # 티커는 표시하지 않도록 컬럼 조정
-                                col1.write(f"- **{name}**")
+                            if ticker != "N/A":
+                                col1, col2 = st.columns([0.5, 0.5])
+                                col1.write(f"- **{name}**") # 종목명만 표시
                                 stock_data_series = get_stock_data(ticker, period="2d")
 
                                 if not stock_data_series.empty and len(stock_data_series) >= 1 and pd.api.types.is_numeric_dtype(stock_data_series):
@@ -254,30 +264,18 @@ else:
                                         col2.metric("현재가", f"{current_price:,.2f}", f"{daily_change_percent:,.2f}%")
                                     else:
                                         col2.metric("현재가", f"{current_price:,.2f}")
-                                else:
-                                    col2.write("데이터 없음") # 데이터가 없을 때만 "데이터 없음" 표시
+                                # 데이터가 없는 경우 아무것도 표시하지 않음
                             else:
-                                st.write(f"- {name}") # N/A인 경우 티커 없이 이름만 표시 (예: KRX 금 시장)
+                                st.write(f"- {name}")
                 st.markdown("---")
-
-        # 3. '투자팁 : ISA 계좌 활용'은 'ETF' 란의 상단에 오도록 위치 수정
-        if "ETF" in selected_assets:
-            st.markdown("### 💡 투자 팁: ISA 계좌 활용")
-            st.info(
-                "주식, ETF 등 일부 금융 상품을 개인 계좌에서 구매하는 것보다 **ISA (Individual Savings Account) 계좌**를 통해 구매하는 것을 고려해보세요.\n"
-                "ISA 계좌는 일정 한도 내에서 **비과세 또는 저율 분리과세 혜택**을 받을 수 있어 절세에 유리합니다.\n"
-                "특히, **ETF**와 같은 상품은 ISA 계좌에서 매매차익에 대한 세금 혜택을 받을 수 있으니, 자세한 내용은 증권사에 문의하거나 관련 정보를 찾아보시길 권합니다.\n"
-                "**연금저축펀드**와 **IRP** 계좌도 노후 대비 및 세액공제 혜택이 있으니 함께 알아보시면 좋습니다."
-            )
-            st.markdown("---")
-
 
         # 백테스팅 (간단한 예시)
         st.markdown("### 📈 백테스팅 시뮬레이션 (예시)")
         st.markdown("선택된 자산 비중에 따라 **과거 데이터**로 포트폴리오 수익률을 **매우 간략하게** 시뮬레이션 합니다. **실제 수익률과는 차이가 있을 수 있습니다.**")
 
         # 백테스팅 기간 설정
-        current_date_for_default = datetime.date(2025, 6, 10) # 기준 날짜 설정
+        # 현재 시간: Tuesday, June 10, 2025 at 7:09:33 PM KST.
+        current_date_for_default = datetime.date(2025, 6, 10) # 현재 날짜를 2025년 6월 10일로 가정
         default_start_date = (current_date_for_default - pd.DateOffset(years=1)).date()
         default_end_date = current_date_for_default
 
