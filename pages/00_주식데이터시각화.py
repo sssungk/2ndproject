@@ -37,13 +37,12 @@ def load_stock_data(tickers, start_date, end_date):
                 failed_tickers.append(ticker)
                 continue
 
-            # 컬럼 확인 및 데이터 추출 로직 강화
             selected_column_data = None
             
             if 'Adj Close' in df.columns:
                 selected_column_data = df['Adj Close']
             elif 'Close' in df.columns:
-                st.warning(f"⚠️ **{ticker}**: 'Adj Close' 컬럼이 없어 'Close' 컬럼으로 데이터를 사용합니다.")
+                # 'Adj Close'가 없어 'Close' 컬럼을 사용하는 경우의 경고 메시지를 제거했습니다.
                 selected_column_data = df['Close']
             # 멀티인덱스 컬럼 처리 (이전에 구현된 로직 유지)
             elif isinstance(df.columns, pd.MultiIndex):
@@ -58,10 +57,10 @@ def load_stock_data(tickers, start_date, end_date):
                 
                 if adj_close_col_name:
                     selected_column_data = df[adj_close_col_name]
-                    st.warning(f"⚠️ **{ticker}**: 멀티인덱스 컬럼에서 'Adj Close'를 찾아 사용합니다.")
+                    # 멀티인덱스 컬럼에서 'Adj Close'를 찾아 사용하는 경우의 경고 메시지를 제거했습니다.
                 elif close_col_name:
                     selected_column_data = df[close_col_name]
-                    st.warning(f"⚠️ **{ticker}**: 멀티인덱스 컬럼에서 'Adj Close' 대신 'Close'를 찾아 사용합니다.")
+                    # 멀티인덱스 컬럼에서 'Adj Close' 대신 'Close'를 찾아 사용하는 경우의 경고 메시지를 제거했습니다.
             
             if selected_column_data is not None and not selected_column_data.empty:
                 # Series에 티커 이름 할당 (pd.concat 시 컬럼명으로 사용)
@@ -81,9 +80,6 @@ def load_stock_data(tickers, start_date, end_date):
     
     # 성공적으로 로드된 Series들을 하나의 DataFrame으로 합치기
     if series_list:
-        # 모든 Series의 날짜 인덱스를 기준으로 외부 조인하여 합침
-        # fillna(method='ffill')로 이전 값을 채우고, 이후 fillna(method='bfill')로 이후 값을 채움
-        # .loc[start_date:end_date]로 처음 지정했던 날짜 범위로 잘라냄
         combined_df = pd.concat(series_list, axis=1, join='outer')
         
         # 날짜 인덱스를 정렬 (필요시)
@@ -122,7 +118,6 @@ if selected_tickers:
     if not stock_data.empty:
         # 6. 주가 변화율 계산 (선택 사항: 정규화된 주가)
         # 데이터프레임이 비어있지 않고, 첫 행이 모두 NaN이 아닌지 확인
-        # 첫 행이 모두 NaN인 경우 오류 방지 (예: 모든 데이터가 시작일부터 NaN인 경우)
         if not stock_data.iloc[0].isnull().all():
             normalized_stock_data = stock_data / stock_data.iloc[0] * 100
             st.subheader("기업별 주가 변화율 (최초일 기준 100% 정규화)")
