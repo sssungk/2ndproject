@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import yfinance as yf
-import datetime # datetime 모듈 추가
+import datetime # 날짜 처리를 위해 datetime 모듈 추가
 
 # --- 앱 설정 (가장 먼저 위치해야 함) ---
 st.set_page_config(layout="wide", page_title="AI 투자 도우미")
@@ -11,16 +11,16 @@ st.set_page_config(layout="wide", page_title="AI 투자 도우미")
 @st.cache_data(ttl=3600) # 1시간마다 캐시 갱신
 def get_stock_data(ticker, period="1y"):
     """
-    yfinance를 사용하여 주식/ETF 데이터를 가져오는 함수
+    yfinance를 사용하여 주식/ETF 데이터를 가져오는 함수.
     'Adj Close' 데이터가 없을 경우 'Close' 데이터를 사용하고,
-    데이터가 없으면 안전하게 None을 반환하도록 개선.
+    데이터가 없으면 안전하게 빈 Series를 반환하여 호출 측에서 처리하도록 함.
     """
     try:
         data = yf.download(ticker, period=period)
 
         if data.empty:
             st.warning(f"'{ticker}' 종목에 대한 데이터를 찾을 수 없습니다. (데이터 없음)")
-            return None # 데이터가 없으면 None 반환
+            return pd.Series(dtype='float64') # 빈 Series 반환
 
         if 'Adj Close' in data.columns and not data['Adj Close'].empty:
             return data['Adj Close']
@@ -29,11 +29,11 @@ def get_stock_data(ticker, period="1y"):
             return data['Close']
         else:
             st.error(f"'{ticker}' 종목에 대한 'Adj Close' 또는 'Close' 데이터를 찾을 수 없습니다.")
-            return None # 유효한 컬럼이 없으면 None 반환
+            return pd.Series(dtype='float64') # 유효한 컬럼이 없으면 빈 Series 반환
 
     except Exception as e:
         st.error(f"'{ticker}' 종목 데이터를 불러오는 중 예외가 발생했습니다: {e}")
-        return None # 예외 발생 시 None 반환
+        return pd.Series(dtype='float64') # 예외 발생 시 빈 Series 반환
 
 # --- 앱 본문 시작 ---
 st.title("💰 AI 투자 도우미: 맞춤형 자산 포트폴리오 구성")
@@ -172,16 +172,19 @@ else:
                             col1, col2, col3 = st.columns([0.3, 0.2, 0.5])
                             col1.write(f"- **{name}**")
                             # 실시간 데이터 연동 (yfinance)
-                            stock_data_series = get_stock_data(ticker, period="1d") # Series 또는 None 반환
+                            # period="1d"는 오늘 하루의 데이터만 가져옴. 주말이나 공휴일 등 데이터가 없을 수 있음.
+                            # 안정성을 위해 최소 2일치를 요청하고 최신 2개 데이터로 현재가와 전일 변화율 계산
+                            stock_data_series = get_stock_data(ticker, period="2d")
 
-                            if stock_data_series is not None and not stock_data_series.empty: # None이 아니고 비어있지 않을 경우에만 처리
+                            # 데이터가 유효한지 꼼꼼히 확인
+                            if not stock_data_series.empty and len(stock_data_series) >= 1 and pd.api.types.is_numeric_dtype(stock_data_series):
                                 current_price = stock_data_series.iloc[-1]
                                 # 전일 종가가 있을 경우에만 일일 변화율 계산
-                                if len(stock_data_series) > 1:
+                                if len(stock_data_series) > 1 and pd.api.types.is_numeric_dtype(stock_data_series.iloc[-2]):
                                     previous_price = stock_data_series.iloc[-2]
                                     daily_change_percent = ((current_price - previous_price) / previous_price) * 100 if previous_price != 0 else 0
                                     col2.metric("현재가", f"{current_price:,.2f}", f"{daily_change_percent:,.2f}%")
-                                else: # 당일 데이터만 있는 경우 (장이 시작하자마자 등)
+                                else: # 당일 데이터만 있거나 전일 데이터가 숫자가 아닌 경우
                                     col2.metric("현재가", f"{current_price:,.2f}")
                                 col3.write(f"(`{ticker}`)")
                             else: # 데이터가 없거나 유효하지 않은 경우
@@ -206,8 +209,7 @@ else:
         st.markdown("선택된 자산 비중에 따라 **과거 데이터**로 포트폴리오 수익률을 **매우 간략하게** 시뮬레이션 합니다. **실제 수익률과는 차이가 있을 수 있습니다.**")
 
         # 백테스팅 기간 설정
-        # 현재 시간으로 정확한 날짜를 가져오기 위해 datetime 모듈 사용
-        # 현재 시간: Tuesday, June 10, 2025 at 6:50:54 PM KST
+        # 현재 시간: Tuesday, June 10, 2025 at 6:52:20 PM KST.
         current_date_for_default = datetime.date(2025, 6, 10) # 현재 날짜를 2025년 6월 10일로 가정
         default_start_date = (current_date_for_default - pd.DateOffset(years=1)).date()
         default_end_date = current_date_for_default
@@ -264,9 +266,9 @@ else:
                             ticker_symbol = selected_backtest_tickers[asset]
                             st.write(f"**{asset} ({ticker_symbol})** 데이터 로딩 중...")
                             # 넉넉한 기간으로 데이터 불러오고 나중에 자르기
-                            asset_data_series = get_stock_data(ticker_symbol, period="5y") # Series 또는 None 반환
+                            asset_data_series = get_stock_data(ticker_symbol, period="5y") # Series 반환
 
-                            if asset_data_series is not None and not asset_data_series.empty:
+                            if not asset_data_series.empty and pd.api.types.is_numeric_dtype(asset_data_series): # 데이터가 비어있지 않고 숫자형인지 확인
                                 # 선택한 기간으로 자르기
                                 asset_data_period = asset_data_series[(asset_data_series.index.date >= start_date) & (asset_data_series.index.date <= end_date)]
 
@@ -292,7 +294,7 @@ else:
                                 else:
                                     st.warning(f"'{asset}' ({ticker_symbol})에 대한 선택 기간 내 데이터가 없습니다.")
                             else:
-                                st.warning(f"'{asset}' ({ticker_symbol})에 대한 데이터를 찾을 수 없습니다. Ticker가 정확한지 확인해주세요.")
+                                st.warning(f"'{asset}' ({ticker_symbol})에 대한 데이터를 찾을 수 없거나 유효하지 않습니다. Ticker가 정확한지 확인해주세요.")
 
                     if not total_portfolio_returns.empty and initial_data_loaded:
                         cumulative_returns = (1 + total_portfolio_returns).cumprod()
