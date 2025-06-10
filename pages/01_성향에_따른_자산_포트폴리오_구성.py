@@ -3,28 +3,23 @@ import pandas as pd
 import plotly.express as px
 import yfinance as yf # 실시간 데이터 연동을 위한 라이브러리
 
-# yfinance 캐싱을 위한 설정 (API 호출 제한에 대비)
-# @st.cache_data # Streamlit 1.10.0 이상에서는 st.cache_data 사용
-# def get_stock_data(ticker, period="1y"):
-#     try:
-#         data = yf.download(ticker, period=period)
-#         return data['Adj Close']
-#     except Exception as e:
-#         st.warning(f"'{ticker}' 종목 데이터를 불러오는 데 실패했습니다: {e}")
-#         return pd.Series() # 빈 시리즈 반환
+# --- 앱 설정 (가장 먼저 위치해야 함) ---
+st.set_page_config(layout="wide", page_title="AI 투자 도우미")
 
-# Streamlit 1.10.0 미만 또는 안정성을 위해 st.cache 사용 (deprecated 예정)
-@st.cache(ttl=3600) # 1시간마다 캐시 갱신
+# --- 캐싱 함수 정의 (st.cache_data 사용) ---
+@st.cache_data(ttl=3600) # 1시간마다 캐시 갱신
 def get_stock_data(ticker, period="1y"):
+    """
+    yfinance를 사용하여 주식/ETF 데이터를 가져오는 함수
+    """
     try:
         data = yf.download(ticker, period=period)
         return data['Adj Close']
     except Exception as e:
         st.warning(f"'{ticker}' 종목 데이터를 불러오는 데 실패했습니다: {e}")
-        return pd.Series() # 빈 시리즈 반환
+        return pd.Series(dtype='float64') # 빈 시리즈 반환 시 dtype 지정
 
-# --- 앱 시작 ---
-st.set_page_config(layout="wide") # 넓은 레이아웃 설정
+# --- 앱 본문 시작 ---
 st.title("💰 AI 투자 도우미: 맞춤형 자산 포트폴리오 구성")
 
 # 1. 투자 성향 슬라이더
@@ -47,8 +42,6 @@ if not selected_assets:
     st.warning("포트폴리오에 포함할 자산을 1개 이상 선택해주세요.")
 else:
     # 2. 포트폴리오 구성 로직 (예시)
-    # 이 부분은 투자 성향과 선택된 자산에 따라 비율을 동적으로 조절하는 핵심 로직입니다.
-    # 실제로는 더 정교한 금융 모델이나 최적화 알고리즘이 필요합니다.
     portfolio = {}
 
     # 기본 비율 설정 (리스크 성향 50 기준)
@@ -77,8 +70,11 @@ else:
                 portfolio[asset] = base_percent
 
     # 선택되지 않은 자산은 0으로 설정
-    for asset_name in ["금", "채권", "CMA/파킹통장 (현금)", "적금", "ETF", "주식", "원자재"]:
+    all_possible_assets = ["금", "채권", "CMA/파킹통장 (현금)", "적금", "ETF", "주식", "원자재"]
+    for asset_name in all_possible_assets:
         if asset_name not in selected_assets:
+            portfolio[asset_name] = 0
+        elif asset_name not in portfolio: # 선택했지만 base_allocations에 없는 경우 (안전장치)
             portfolio[asset_name] = 0
 
     # 비율 정규화 (총합 100%)
@@ -118,12 +114,12 @@ else:
 
         asset_recommendations = {
             "금": {
-                "종목": {"KODEX 골드선물(H)": "000000.KS"}, # 실제 Ticker 아님, 예시
-                "설명": "금은 인플레이션 헤지 및 안전자산으로 선호됩니다. 달러 가치와 반대로 움직이는 경향이 있습니다. (ETF: KODEX 골드선물(H), ACE 골드선물블룸버그(H))"
+                "종목": {"SPDR Gold Shares (GLD)": "GLD"}, # 미국 ETF 예시, 한국 금선물 ETF Ticker는 yfinance에서 조회 어려움
+                "설명": "금은 인플레이션 헤지 및 안전자산으로 선호됩니다. 달러 가치와 반대로 움직이는 경향이 있습니다. (ETF: GLD 등)"
             },
             "채권": {
-                "종목": {"KODEX 국고채3년": "000000.KS", "TLT": "TLT"}, # TLT는 미국 장기채 ETF
-                "설명": "채권은 주식에 비해 안정적인 수익을 제공하며, 경기 침체 시 가치가 상승할 수 있습니다. 금리 변동에 민감합니다. (ETF: KODEX 국고채3년, KBSTAR 국고채10년, 미국 장기채 ETF)"
+                "종목": {"iShares 20+ Year Treasury Bond ETF (TLT)": "TLT"}, # 미국 장기채 ETF 예시
+                "설명": "채권은 주식에 비해 안정적인 수익을 제공하며, 경기 침체 시 가치가 상승할 수 있습니다. 금리 변동에 민감합니다. (ETF: TLT 등)"
             },
             "CMA/파킹통장 (현금)": {
                 "종목": {"토스뱅크 파킹통장": "N/A"},
@@ -134,7 +130,7 @@ else:
                 "설명": "정해진 기간 동안 꾸준히 저축하며, 확정된 금리 수익을 얻을 수 있는 안전한 상품입니다. 목돈 마련에 유용합니다."
             },
             "ETF": {
-                "종목": {"KODEX 200": "069500.KS", "TIGER 미국S&P500": "360750.KS", "QQQ": "QQQ"},
+                "종목": {"KODEX 200": "069500.KS", "TIGER 미국S&P500": "360750.KS", "Invesco QQQ Trust (QQQ)": "QQQ"},
                 "설명": "다양한 자산에 분산 투자하는 펀드를 주식처럼 거래할 수 있습니다. 특정 지수, 산업, 국가에 투자하여 분산 효과를 누릴 수 있습니다."
             },
             "주식": {
@@ -142,7 +138,7 @@ else:
                 "설명": "개별 기업의 성장에 직접 투자하여 높은 수익을 추구할 수 있으나, 변동성이 매우 큽니다. 기업 분석과 시장 상황에 대한 이해가 필수적입니다."
             },
             "원자재": {
-                "종목": {"KODEX WTI원유선물(H)": "000000.KS", "KODEX 은선물(H)": "000000.KS"}, # 실제 Ticker 아님, 예시
+                "종목": {"United States Oil Fund (USO)": "USO"}, # 원유 ETF 예시
                 "설명": "원유, 구리, 곡물 등 실물 자산에 투자합니다. 글로벌 경제 상황이나 공급망 이슈에 따라 가격 변동성이 큽니다."
             }
         }
@@ -151,26 +147,29 @@ else:
             if asset in asset_recommendations:
                 st.markdown(f"#### ➡️ {asset}")
                 st.write(f"**설명:** {asset_recommendations[asset]['설명']}")
-                
-                recommended_tickers = asset_recommendations[asset]['종목']
-                if recommended_tickers:
+
+                recommended_tickers_info = asset_recommendations[asset]['종목']
+                if recommended_tickers_info:
                     st.write(f"**추천 종목/ETF:**")
-                    for name, ticker in recommended_tickers.items():
+                    for name, ticker in recommended_tickers_info.items():
                         if ticker != "N/A":
                             col1, col2, col3 = st.columns([0.3, 0.2, 0.5])
                             col1.write(f"- **{name}**")
                             # 실시간 데이터 연동 (yfinance)
-                            stock_data = get_stock_data(ticker, period="1d")
+                            stock_data = get_stock_data(ticker, period="1d") # 당일 데이터만 가져와서 현재가 확인
                             if not stock_data.empty:
                                 current_price = stock_data.iloc[-1]
-                                previous_price = stock_data.iloc[-2] if len(stock_data) > 1 else current_price
-                                daily_change_percent = ((current_price - previous_price) / previous_price) * 100 if previous_price != 0 else 0
-
-                                col2.metric("현재가", f"{current_price:,.2f}", f"{daily_change_percent:,.2f}%")
-                                # col2.write(f"**현재가:** {current_price:,.2f}") # 이전 버전
+                                # 전일 종가가 있을 경우에만 일일 변화율 계산
+                                if len(stock_data) > 1:
+                                    previous_price = stock_data.iloc[-2]
+                                    daily_change_percent = ((current_price - previous_price) / previous_price) * 100 if previous_price != 0 else 0
+                                    col2.metric("현재가", f"{current_price:,.2f}", f"{daily_change_percent:,.2f}%")
+                                else: # 당일 데이터만 있는 경우 (장이 시작하자마자 등)
+                                    col2.metric("현재가", f"{current_price:,.2f}")
+                                col3.write(f"(`{ticker}`)")
                             else:
                                 col2.write("데이터 없음")
-                            col3.write(f"(`{ticker}`)")
+                                col3.write(f"(`{ticker}`)")
                         else:
                             st.write(f"- {name}")
                 st.markdown("---")
@@ -187,88 +186,102 @@ else:
         # 백테스팅 (간단한 예시)
         st.markdown("---")
         st.markdown("### 📈 백테스팅 시뮬레이션 (예시)")
-        st.markdown("선택된 자산 비중에 따라 **과거 1년 동안**의 포트폴리오 수익률을 **매우 간략하게** 시뮬레이션 합니다. **실제 수익률과는 차이가 있을 수 있습니다.**")
-        
-        start_date = st.date_input("시작 날짜 (최근 1년)", pd.to_datetime('2024-06-01'))
-        end_date = st.date_input("종료 날짜", pd.to_datetime('2025-06-01'))
+        st.markdown("선택된 자산 비중에 따라 **과거 데이터**로 포트폴리오 수익률을 **매우 간략하게** 시뮬레이션 합니다. **실제 수익률과는 차이가 있을 수 있습니다.**")
 
-        # 백테스팅 가능한 종목 선택 (yfinance로 조회 가능한 종목)
-        backtest_tickers = {
-            "ETF": {"KODEX 200": "069500.KS", "TIGER 미국S&P500": "360750.KS"},
-            "주식": {"삼성전자": "005930.KS", "SK하이닉스": "000660.KS"},
-            "채권": {"TLT": "TLT"}, # 미국 장기채 ETF (한국 채권 ETF 데이터 연동 어려움)
-            "금": {"GLD": "GLD"} # 금 ETF (한국 금 선물 ETF 데이터 연동 어려움)
-        }
+        # 백테스팅 기간 설정
+        default_start_date = pd.to_datetime('2024-06-01').date() # 오늘 날짜 기준 1년 전
+        default_end_date = pd.to_datetime('2025-06-01').date() # 오늘 날짜 (미래 날짜일 경우 현재 날짜로 조정)
 
-        # 선택된 자산에 해당하는 백테스팅 종목 추출 및 종목 선택 추가
-        available_backtest_assets = {}
-        for asset_type, tickers_map in backtest_tickers.items():
-            if asset_type in selected_assets:
-                available_backtest_assets[asset_type] = tickers_map
+        start_date = st.date_input("시작 날짜", default_start_date)
+        end_date = st.date_input("종료 날짜", default_end_date)
         
-        selected_backtest_tickers = {}
-        if available_backtest_assets:
+        if start_date >= end_date:
+            st.error("시작 날짜는 종료 날짜보다 빨라야 합니다.")
+        else:
+            # 백테스팅 가능한 종목 선택 (yfinance로 조회 가능한 종목)
+            backtest_tickers = {
+                "ETF": {"KODEX 200": "069500.KS", "TIGER 미국S&P500": "360750.KS", "Invesco QQQ Trust (QQQ)": "QQQ"},
+                "주식": {"삼성전자": "005930.KS", "SK하이닉스": "000660.KS"},
+                "채권": {"iShares 20+ Year Treasury Bond ETF (TLT)": "TLT"},
+                "금": {"SPDR Gold Shares (GLD)": "GLD"},
+                "원자재": {"United States Oil Fund (USO)": "USO"}
+            }
+
+            # 선택된 자산에 해당하는 백테스팅 종목 추출 및 종목 선택 추가
+            selected_backtest_tickers = {}
             st.write("각 자산군에서 백테스팅에 사용할 대표 종목을 선택해주세요:")
-            for asset_type, tickers_map in available_backtest_assets.items():
-                if tickers_map:
-                    default_ticker_name = list(tickers_map.keys())[0] # 첫 번째 종목을 기본값으로
-                    selected_name = st.selectbox(f"{asset_type} 대표 종목", list(tickers_map.keys()), key=f"backtest_{asset_type}")
-                    selected_backtest_tickers[asset_type] = tickers_map[selected_name]
-        
-        if st.button("백테스팅 시작"):
-            if not selected_backtest_tickers:
-                st.warning("백테스팅을 위해 최소 1개 이상의 자산군에서 종목을 선택해주세요.")
-            else:
-                st.write("---")
-                st.subheader("🗓️ 백테스팅 결과")
-                
-                total_portfolio_returns = pd.Series(dtype=float)
-                
-                # 가중 평균 수익률 계산
-                for asset, allocation in portfolio.items():
-                    if allocation > 0 and asset in available_backtest_assets and asset in selected_backtest_tickers:
-                        ticker_symbol = selected_backtest_tickers[asset]
-                        st.write(f"**{asset} ({ticker_symbol})** 데이터 로딩 중...")
-                        asset_data = get_stock_data(ticker_symbol, period="1y") # 1년치 데이터로 충분
-                        
-                        if not asset_data.empty:
-                            # 선택한 기간으로 자르기
-                            asset_data = asset_data[(asset_data.index >= pd.Timestamp(start_date)) & (asset_data.index <= pd.Timestamp(end_date))]
-                            if not asset_data.empty:
-                                daily_returns = asset_data.pct_change().dropna()
-                                
-                                # 포트폴리오 기여도 계산
-                                if total_portfolio_returns.empty:
-                                    total_portfolio_returns = daily_returns * (allocation / 100)
-                                else:
-                                    # 인덱스 정렬 및 조인하여 데이터 누락 방지
-                                    common_index = total_portfolio_returns.index.intersection(daily_returns.index)
-                                    total_portfolio_returns = total_portfolio_returns.loc[common_index] + (daily_returns.loc[common_index] * (allocation / 100))
-                                
-                                st.write(f"- **{asset}** ({ticker_symbol}): 데이터 로딩 완료")
-                            else:
-                                st.warning(f"'{asset}' ({ticker_symbol})에 대한 선택 기간 내 데이터가 없습니다.")
-                        else:
-                            st.warning(f"'{asset}' ({ticker_symbol})에 대한 데이터를 찾을 수 없습니다.")
+            
+            has_selectable_backtest_assets = False
+            for asset_type in selected_assets:
+                if asset_type in backtest_tickers and backtest_tickers[asset_type]:
+                    has_selectable_backtest_assets = True
+                    default_ticker_name = list(backtest_tickers[asset_type].keys())[0] # 첫 번째 종목을 기본값으로
+                    selected_name = st.selectbox(f"{asset_type} 대표 종목", list(backtest_tickers[asset_type].keys()), index=0, key=f"backtest_{asset_type}")
+                    selected_backtest_tickers[asset_type] = backtest_tickers[asset_type][selected_name]
 
-                if not total_portfolio_returns.empty:
-                    cumulative_returns = (1 + total_portfolio_returns).cumprod()
-                    
-                    if not cumulative_returns.empty:
-                        initial_value = 1000 # 가상의 초기 투자 금액
-                        final_value = initial_value * cumulative_returns.iloc[-1]
-                        total_return_percent = ((final_value - initial_value) / initial_value) * 100
-
-                        st.markdown(f"**총 포트폴리오 수익률 (기간: {start_date} ~ {end_date}): {total_return_percent:.2f}%**")
-                        st.markdown(f"*{initial_value:,.0f}원 투자 시 약 {final_value:,.0f}원이 됩니다.*")
-
-                        fig_backtest = px.line(cumulative_returns, title='<b>포트폴리오 누적 수익률</b>')
-                        fig_backtest.update_layout(showlegend=False)
-                        st.plotly_chart(fig_backtest, use_container_width=True)
-                    else:
-                        st.warning("선택하신 종목들로 백테스팅을 수행할 충분한 데이터가 없습니다.")
+            if not has_selectable_backtest_assets:
+                st.warning("선택하신 자산 중 백테스팅을 지원하는 종목이 없습니다. ETF, 주식, 채권, 금, 원자재 중에서 선택해주세요.")
+            
+            if st.button("백테스팅 시작"):
+                if not selected_backtest_tickers:
+                    st.warning("백테스팅을 위해 최소 1개 이상의 자산군에서 종목을 선택해주세요.")
                 else:
-                    st.warning("백테스팅을 위한 종목 데이터를 불러오지 못했습니다. 선택하신 자산군 중 데이터를 제공하는 종목을 다시 선택해주세요.")
+                    st.write("---")
+                    st.subheader("🗓️ 백테스팅 결과")
+
+                    total_portfolio_returns = pd.Series(dtype=float)
+                    initial_data_loaded = False
+                    
+                    # 각 자산의 데이터를 불러와서 포트폴리오 수익률 계산
+                    for asset, allocation in portfolio.items():
+                        if allocation > 0 and asset in selected_backtest_tickers:
+                            ticker_symbol = selected_backtest_tickers[asset]
+                            st.write(f"**{asset} ({ticker_symbol})** 데이터 로딩 중...")
+                            # 넉넉한 기간으로 데이터 불러오고 나중에 자르기
+                            asset_data = get_stock_data(ticker_symbol, period="5y") # 넉넉하게 5년치 데이터 가져오기
+
+                            if not asset_data.empty:
+                                # 선택한 기간으로 자르기
+                                asset_data_period = asset_data[(asset_data.index.date >= start_date) & (asset_data.index.date <= end_date)]
+
+                                if not asset_data_period.empty:
+                                    daily_returns = asset_data_period.pct_change().dropna()
+
+                                    if not initial_data_loaded:
+                                        total_portfolio_returns = daily_returns * (allocation / 100)
+                                        initial_data_loaded = True
+                                    else:
+                                        # 공통 날짜 인덱스를 기준으로 조인하여 데이터 누락 방지
+                                        common_index = total_portfolio_returns.index.intersection(daily_returns.index)
+                                        if not common_index.empty:
+                                            total_portfolio_returns = total_portfolio_returns.loc[common_index] + (daily_returns.loc[common_index] * (allocation / 100))
+                                        else:
+                                            st.warning(f"'{asset}' ({ticker_symbol})과 다른 자산 간의 공통 데이터 기간이 부족하여 합산할 수 없습니다.")
+
+                                    st.write(f"- **{asset}** ({ticker_symbol}): 데이터 로딩 완료")
+                                else:
+                                    st.warning(f"'{asset}' ({ticker_symbol})에 대한 선택 기간 내 데이터가 없습니다.")
+                            else:
+                                st.warning(f"'{asset}' ({ticker_symbol})에 대한 데이터를 찾을 수 없습니다. Ticker가 정확한지 확인해주세요.")
+                    
+                    if not total_portfolio_returns.empty and initial_data_loaded:
+                        cumulative_returns = (1 + total_portfolio_returns).cumprod()
+
+                        if not cumulative_returns.empty:
+                            initial_value = 1000 # 가상의 초기 투자 금액
+                            final_value = initial_value * cumulative_returns.iloc[-1]
+                            total_return_percent = ((final_value - initial_value) / initial_value) * 100
+
+                            st.markdown(f"**총 포트폴리오 수익률 (기간: {start_date} ~ {end_date}): {total_return_percent:.2f}%**")
+                            st.markdown(f"*{initial_value:,.0f}원 투자 시 약 {final_value:,.0f}원이 됩니다.*")
+
+                            fig_backtest = px.line(cumulative_returns, title='<b>포트폴리오 누적 수익률</b>')
+                            fig_backtest.update_layout(showlegend=False, yaxis_title="누적 수익률 (초기 1.0)", xaxis_title="날짜")
+                            st.plotly_chart(fig_backtest, use_container_width=True)
+                        else:
+                            st.warning("선택하신 종목들로 백테스팅을 수행할 충분한 데이터가 없습니다.")
+                    else:
+                        st.warning("백테스팅을 위한 종목 데이터를 불러오지 못했거나, 선택하신 자산군의 데이터가 부족합니다. 선택하신 자산군 중 데이터를 제공하는 종목을 다시 선택해주세요.")
 
     # 7. 위험 경고
     st.markdown("---")
@@ -281,5 +294,5 @@ else:
         "전문가와 상담하여 신중하게 투자하시기를 강력히 권고합니다."
     )
 
-st.markdown("---")
+st.sidebar.markdown("---")
 st.sidebar.markdown("© 2025 AI 투자 도우미")
