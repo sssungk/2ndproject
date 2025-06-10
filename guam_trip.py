@@ -35,7 +35,7 @@ day_by_day_locations = {
 }
 
 # ---------------------------
-# 해당 일자의 \uuc77c정 정보
+# 해당 일자의 일정 정보
 # ---------------------------
 day_by_day_schedule = {
     "1일차": {
@@ -116,17 +116,49 @@ for time, activity in schedule.items():
 # 지도 표시 (해당 일자의 장소들)
 if selected_day in day_by_day_locations:
     st.subheader("📍 방문 장소 지도")
-    m = folium.Map(location=[13.5, 144.8], zoom_start=11)
     locs = day_by_day_locations[selected_day]
     coords = []
-    for name, coord in locs.items():
-        coords.append(coord)
-        folium.Marker(location=coord, popup=name, icon=folium.Icon(color="green")).add_to(m)
+    
+    # Check if there are locations for the selected day
+    if locs:
+        for name, coord in locs.items():
+            coords.append(coord)
+        
+        # Calculate bounds for fitting the map
+        if coords:
+            min_lat = min(c[0] for c in coords)
+            max_lat = max(c[0] for c in coords)
+            min_lon = min(c[1] for c in coords)
+            max_lon = max(c[1] for c in coords)
 
-    # 루트 표시 (선택 사항)
-    if len(coords) >= 2:
-        PolyLine(locations=coords, color='blue').add_to(m)
+            # Initialize map with center of the bounds
+            center_lat = (min_lat + max_lat) / 2
+            center_lon = (min_lon + max_lon) / 2
+            m = folium.Map(location=[center_lat, center_lon], zoom_start=11)
 
-    st_folium(m, width=700, height=500)
+            # Add markers with emojis
+            for name, coord in locs.items():
+                emoji = name.split(" ")[0] if name[0] in ['🏖️', '🏝️', '💑', '🐬', '🐟', '🛍️', '⛪', '🏞️', '✈️', '🌅'] else '📍' # Extract emoji or use default
+                folium.Marker(
+                    location=coord,
+                    popup=name,
+                    icon=folium.DivIcon(
+                        html=f"""
+                        <div style="font-size: 24px;">{emoji}</div>""",
+                        class_name="custom-icon"
+                    )
+                ).add_to(m)
+
+            # Add route if more than one location
+            if len(coords) >= 2:
+                PolyLine(locations=coords, color='blue', weight=5, opacity=0.7).add_to(m)
+            
+            # Fit bounds to the map if there are multiple locations
+            if len(coords) > 1:
+                m.fit_bounds([[min_lat, min_lon], [max_lat, max_lon]])
+            
+            st_folium(m, width=700, height=500)
+    else:
+        st.info("해당 날짜에는 특별한 장소 방문 계획이 없습니다.")
 else:
     st.info("해당 날짜에는 특별한 장소 방문 계획이 없습니다.")
