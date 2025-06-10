@@ -241,7 +241,7 @@ else:
                     st.markdown("---")
                     st.markdown("[CMA/파킹 통장 금리 비교](https://new-m.pay.naver.com/savings/list/cma)")
                     st.markdown("---")
-                elif asset == " 적금": # 이 부분은 '적금'으로 공백 없이 매칭되어야 합니다.
+                elif asset == "적금":
                     st.markdown("---")
                     st.markdown("[예적금 금리 비교](https://new-m.pay.naver.com/savings/list/saving)")
                     st.markdown("---")
@@ -286,19 +286,19 @@ else:
     st.markdown("### 📌 자산군별 종목 선택")
     st.write("각 자산군에서 투자하고 싶은 종목들을 직접 선택해주세요.")
 
-    selected_portfolio_items = {} # 최종 선택된 종목과 티커를 저장할 딕셔너리
+    selected_portfolio_items = {} # 최종 선택된 종목과 티커를 저장할 딕셔너리 (이름: 티커)
 
     # 각 자산군별로 종목을 선택하도록 UI 구성
     for asset_type in selected_assets:
         if asset_type in ["CMA/파킹통장 (현금)", "적금"]:
             # CMA/파킹통장, 적금은 종목 선택 없이 금액 배분으로 처리
-            selected_portfolio_items[asset_type] = []
+            # 하지만 여기서 selected_portfolio_items에 추가하지 않아야 함. (하단의 금액 배분에서 직접 처리)
             continue
 
         st.markdown(f"#### {asset_type} 종목 선택")
 
         # 각 자산군에 해당하는 추천 종목 리스트 가져오기
-        current_asset_options = {}
+        current_asset_options = {} # {이름: 티커}
         if asset_type == "채권":
             for bond_category, bond_info in asset_recommendations[asset_type]['세부종목'].items():
                 for name, ticker in bond_info['종목'].items():
@@ -322,18 +322,17 @@ else:
             key=f"num_choices_{asset_type}"
         )
 
-        chosen_tickers = []
+        chosen_names_for_asset = [] # 현재 자산군에서 선택된 종목 이름 리스트
         for i in range(num_choices):
-            # 사용자가 선택한 종목만 드롭다운에 표시
             available_options = list(current_asset_options.keys())
             
             # 이미 선택된 종목은 다음 드롭다운에서 제외
-            for prev_choice in chosen_tickers:
-                if prev_choice in available_options:
-                    available_options.remove(prev_choice)
+            for prev_choice_name in chosen_names_for_asset:
+                if prev_choice_name in available_options:
+                    available_options.remove(prev_choice_name)
 
             if not available_options:
-                st.warning(f"{asset_type}에 더 이상 선택할 종목이 없습니다.")
+                # st.warning(f"{asset_type}에 더 이상 선택할 종목이 없습니다.") # 이미 위에서 num_choices를 제한했으므로 이 경고는 불필요할 수 있음
                 break
 
             selected_name = st.selectbox(
@@ -342,20 +341,34 @@ else:
                 key=f"{asset_type}_item_{i}"
             )
             if selected_name != "선택하세요":
-                chosen_tickers.append(selected_name)
-                selected_portfolio_items[selected_name] = current_asset_options[selected_name]
+                chosen_names_for_asset.append(selected_name)
+                selected_portfolio_items[selected_name] = current_asset_options[selected_name] # 전체 딕셔너리에 추가
 
-        if not chosen_tickers and num_choices > 0:
+        if not chosen_names_for_asset and num_choices > 0:
             st.warning(f"{asset_type}에서 선택된 종목이 없습니다. 다시 선택해주세요.")
 
     st.markdown("---")
     st.markdown("### 💰 월별 추천 투자 금액")
 
     if st.button("포트폴리오 구성 제안 받기"):
-        if not selected_portfolio_items and not ("CMA/파킹통장 (현금)" in selected_assets or "적금" in selected_assets):
+        # CMA/파킹통장, 적금은 종목 선택이 없으므로, selected_assets에만 있고
+        # selected_portfolio_items에 없어도 투자 제안이 가능하도록 체크
+        if not selected_portfolio_items and not any(asset in ["CMA/파킹통장 (현금)", "적금"] for asset in selected_assets):
             st.warning("월별 투자 가이드를 받으려면 최소 한 개 이상의 자산군에서 종목을 선택하거나, 현금/적금을 선택해주세요.")
         else:
             st.subheader("💡 당신의 월별 투자 플랜")
+            
+            # 자산군별로 금액을 배분하기 전에, 선택된 종목들의 현재가를 미리 가져옵니다.
+            # 이 작업을 한번만 수행하여 캐싱 효과를 높이고 중복 호출을 줄입니다.
+            all_selected_tickers = {v for k, v in selected_portfolio_items.items()}
+            current_prices_cache = {}
+            for ticker in all_selected_tickers:
+                price_series = get_stock_data(ticker, period="1d")
+                if not price_series.empty:
+                    current_prices_cache[ticker] = price_series.iloc[-1]
+                else:
+                    current_prices_cache[ticker] = None
+
             total_invested_amount = 0
 
             # 4. 처음에 나타내준 원그래프 비중에 따라서 각 자산군별 투자 금액 계산
@@ -370,68 +383,51 @@ else:
 
                     if asset in ["CMA/파킹통장 (현금)", "적금"]:
                         st.write(f"- `{asset_amount:,.0f}원`을 {asset}에 예치하는 것을 추천합니다. (위의 비교 링크를 활용하세요.)")
-                    elif asset in selected_assets and asset not in ["CMA/파킹통장 (현금)", "적금"]:
-                        # 해당 자산군에서 사용자가 선택한 종목들만 필터링
-                        selected_tickers_for_asset = {}
-                        if asset == "채권":
-                            for bond_type, bond_info in asset_recommendations[asset]['세부종목'].items():
-                                for name, ticker in bond_info['종목'].items():
-                                    if name in selected_portfolio_items:
-                                        selected_tickers_for_asset[name] = ticker
-                        elif asset in asset_recommendations:
-                            for name, ticker in asset_recommendations[asset]['종목'].items():
-                                if name in selected_portfolio_items:
-                                    selected_tickers_for_asset[name] = ticker
-
-                        if selected_tickers_for_asset:
+                    else: # 주식, ETF, 채권, 금, 원자재 등 종목 선택이 필요한 자산
+                        # 해당 자산군에 속하며 사용자가 선택한 종목들만 필터링
+                        selected_items_in_current_asset = {
+                            name: ticker
+                            for name, ticker in selected_portfolio_items.items()
+                            if (asset == "채권" and any(name in sub_info['종목'] for sub_info in asset_recommendations["채권"]["세부종목"].values())) or \
+                               (asset != "채권" and asset in asset_recommendations and name in asset_recommendations[asset]['종목'])
+                        }
+                        
+                        if selected_items_in_current_asset:
                             st.write(f"**추천 종목별 구매 금액:**")
-                            num_selected_items = len(selected_tickers_for_asset)
                             
-                            # 종목별 현재가 가져오기
-                            item_prices = {}
-                            for name, ticker in selected_tickers_for_asset.items():
-                                if ticker != "N/A":
-                                    price_series = get_stock_data(ticker, period="1d")
-                                    if not price_series.empty:
-                                        item_prices[name] = price_series.iloc[-1]
-                                    else:
-                                        item_prices[name] = None # 가격을 가져오지 못한 경우
-                                else: # KRX 금 시장 등 티커가 N/A인 경우 처리 (현재 기능에서는 제외되었지만, 혹시를 대비)
-                                    item_prices[name] = None
+                            valid_items_with_prices = {
+                                name: current_prices_cache[ticker]
+                                for name, ticker in selected_items_in_current_asset.items()
+                                if current_prices_cache.get(ticker) is not None
+                            }
 
-                            # 각 종목에 균등하게 금액 배분 시도
-                            # 현재가 고려하여 구매 수량 및 잔액 계산
-                            allocated_per_item_base = asset_amount / max(1, num_selected_items)
-                            
-                            remaining_amount = asset_amount
-                            purchase_plan = []
-                            
-                            # 가격을 가져온 종목들만 대상으로 우선 배분
-                            valid_items = {name: price for name, price in item_prices.items() if price is not None}
-                            if valid_items:
-                                amount_per_valid_item = remaining_amount / len(valid_items)
-                                for name, price in valid_items.items():
-                                    num_shares = np.floor(amount_per_valid_item / price)
-                                    if num_shares > 0:
-                                        purchase_amount = num_shares * price
-                                        purchase_plan.append(f"- **{name}**: 약 **{purchase_amount:,.0f}원** ({int(num_shares)}주 구매 가능)")
-                                        remaining_amount -= purchase_amount
-                                    else:
-                                        purchase_plan.append(f"- **{name}**: **{price:,.0f}원** (1주 구매 금액) - 현재 금액으로는 1주 구매 어려움.")
-                                        
-                                st.markdown("\n".join(purchase_plan))
-
-                                if remaining_amount > 0.01:
-                                    st.write(f"*{asset}군 내 남은 금액: {remaining_amount:,.0f}원 (소수점 이하 또는 1주 미만으로 남을 수 있습니다.)*")
+                            if valid_items_with_prices:
+                                num_valid_items = len(valid_items_with_prices)
+                                if num_valid_items > 0:
+                                    amount_per_valid_item = asset_amount / num_valid_items
+                                    remaining_amount_for_asset = asset_amount
                                     
+                                    for name, price in valid_items_with_prices.items():
+                                        num_shares = np.floor(amount_per_valid_item / price) # np.floor는 스칼라 반환
+                                        
+                                        # num_shares가 0보다 큰지 단일 값으로 비교
+                                        if num_shares > 0:
+                                            purchase_amount = num_shares * price
+                                            st.write(f"- **{name}**: 약 **{purchase_amount:,.0f}원** ({int(num_shares)}주/개 구매 가능)")
+                                            remaining_amount_for_asset -= purchase_amount
+                                        else:
+                                            st.write(f"- **{name}**: **{price:,.0f}원** (1주/개 구매 금액) - 현재 배분 금액으로는 1주/개 구매 어려움.")
+                                    
+                                    if remaining_amount_for_asset > 0.01: # 미미한 잔액은 무시
+                                        st.write(f"*{asset}군 내 남은 금액: {remaining_amount_for_asset:,.0f}원 (소수점 이하 또는 1주/개 미만으로 남을 수 있습니다.)*")
+                                else:
+                                    st.write(f"- {asset}군 내 선택하신 종목의 현재가 정보를 가져올 수 없습니다. (해당 자산군 내 투자 금액: {asset_amount:,.0f}원)")
                             else:
-                                st.write("- 선택하신 종목의 현재가 정보를 가져올 수 없어 정확한 금액 산출이 어렵습니다. (해당 자산군 내 투자 금액: {asset_amount:,.0f}원)")
-
-
+                                st.write(f"- {asset}군 내 선택하신 모든 종목의 현재가 정보를 가져올 수 없어 정확한 금액 산출이 어렵습니다. (해당 자산군 내 투자 금액: {asset_amount:,.0f}원)")
                         else:
-                            st.write("- 선택하신 해당 자산군 내 종목이 없습니다.")
+                            st.write(f"- {asset}군 내 선택하신 종목이 없습니다. 다시 선택해주세요.")
                     st.markdown("---")
             st.success(f"**총 {total_invested_amount:,.0f}원**에 대한 포트폴리오 구성 제안이 완료되었습니다.")
 
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("© 2025 AI 투자 도우미")
+st.sidebar.markdown("---")
+st.sidebar.markdown("© 2025 AI 투자 도우미")
